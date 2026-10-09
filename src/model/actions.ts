@@ -2,7 +2,9 @@ import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type Item, type I
 import { clamp } from './geometry';
 
 export function newId(): string {
-  return crypto.randomUUID();
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function newBoard(name: string, caseNo: number): Board {

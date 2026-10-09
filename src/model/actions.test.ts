@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { newBoard, makeItem, addItem, updateItem, removeItem, bringToFront, connect, updateLink, removeLink } from './actions';
+import { describe, it, expect, vi } from 'vitest';
+import { newId, newBoard, makeItem, addItem, updateItem, removeItem, bringToFront, connect, updateLink, removeLink } from './actions';
 import { BOARD_W, ITEM_SIZES } from './types';
 
 const rand = () => 0.5;
@@ -10,6 +10,21 @@ function twoItems() {
   b = addItem(addItem(b, a), c);
   return { b, a, c };
 }
+
+describe('newId', () => {
+  it('falls back when crypto.randomUUID is unavailable', () => {
+    vi.stubGlobal('crypto', {});
+    try {
+      const a = newId();
+      const b = newId();
+      expect(a).toBeTruthy();
+      expect(b).toBeTruthy();
+      expect(a).not.toBe(b);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
 
 describe('makeItem', () => {
   it('centres the item on the point with default size', () => {
