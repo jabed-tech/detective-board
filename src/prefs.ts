@@ -11,12 +11,15 @@ export interface Prefs {
   memoSnoozedAt: number;
   tiltNew: boolean;
   lastFastener: FastenerId;
+  clipboardKeys: boolean;
+  freeAnchors: boolean;
 }
 
 export const DEFAULT_PREFS: Prefs = {
   atmosphere: 'gentle', sfx: true, volume: 0.4, neatHand: false,
   defaultTension: 0.5, lastExportAt: 0, memoSnoozedAt: 0,
   tiltNew: true, lastFastener: 'pin',
+  clipboardKeys: true, freeAnchors: false,
 };
 
 const KEY = 'detective-board:prefs';
@@ -46,6 +49,8 @@ export function loadPrefs(store: KV | null = local()): Prefs {
     memoSnoozedAt: num(raw.memoSnoozedAt, 0, Number.MAX_SAFE_INTEGER, 0),
     tiltNew: typeof raw.tiltNew === 'boolean' ? raw.tiltNew : DEFAULT_PREFS.tiltNew,
     lastFastener: FASTENERS.find(f => f.id === raw.lastFastener)?.id ?? DEFAULT_PREFS.lastFastener,
+    clipboardKeys: typeof raw.clipboardKeys === 'boolean' ? raw.clipboardKeys : DEFAULT_PREFS.clipboardKeys,
+    freeAnchors: typeof raw.freeAnchors === 'boolean' ? raw.freeAnchors : DEFAULT_PREFS.freeAnchors,
   };
   if (typeof raw.lastBoardId === 'string') p.lastBoardId = raw.lastBoardId;
   return p;

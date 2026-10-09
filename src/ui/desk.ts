@@ -1,8 +1,8 @@
-import type { ItemType } from '../model/types';
+import type { ItemType, Mode } from '../model/types';
 import { h } from './dom';
 
-export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: 'move' | 'string'): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void; copy(): void; paste(): void }
-export interface DeskState { canUndo: boolean; canRedo: boolean; mode: 'move' | 'string'; yarn: string; muted: boolean }
+export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: Mode): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskState { canUndo: boolean; canRedo: boolean; mode: Mode; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
   const o = h('span', { className: `obj obj-${obj}` });
@@ -54,22 +54,24 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
 
   const hand = deskBtn('hand', 'Move', 'Move mode: drag items around', () => deps.setMode('move'));
   const spool = deskBtn('spool', 'String', 'String mode: drag from one item to another to connect them', () => deps.setMode('string'));
+  const erase = deskBtn('eraser', 'Erase', 'Erase mode: tap an item or string to remove it', () => deps.setMode('erase'));
   hand.setAttribute('aria-pressed', 'true');
   spool.setAttribute('aria-pressed', 'false');
+  erase.setAttribute('aria-pressed', 'false');
   const zoomOut = deskBtn('minus', 'Zoom out', 'Zoom out', () => deps.zoom(0.8));
   const zoomIn = deskBtn('plus', 'Zoom in', 'Zoom in', () => deps.zoom(1.25));
   zoomOut.classList.add('wide-only');
   zoomIn.classList.add('wide-only');
-  const undo = deskBtn('eraser', 'Undo', 'Undo', deps.undo);
-  const redo = deskBtn('pencil', 'Redo', 'Redo', deps.redo);
+  const undo = deskBtn('undo', 'Undo', 'Undo', deps.undo);
+  const redo = deskBtn('redo', 'Redo', 'Redo', deps.redo);
+  undo.classList.add('touch-only'); // keyboards have Ctrl+Z
+  redo.classList.add('touch-only');
   const mute = deskBtn('radio', 'Sound', 'Mute sound effects', deps.toggleMute);
   mute.setAttribute('aria-pressed', 'false');
 
   el.append(
     h('div', { className: 'desk-add' }, add),
-    deskBtn('carbon', 'Copy', 'Copy the selected item (Ctrl+C)', deps.copy),
-    deskBtn('paste', 'Paste', 'Paste an item, image or text (Ctrl+V)', deps.paste),
-    hand, spool,
+    hand, spool, erase,
     deskBtn('glass', 'Fit', 'Fit board to screen', deps.fit),
     zoomOut, zoomIn, undo, redo,
     deskBtn('folder', 'Case', 'Case file: name, export, import', deps.openCaseFile),
@@ -85,6 +87,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
       redo.disabled = !s.canRedo;
       hand.setAttribute('aria-pressed', String(s.mode === 'move'));
       spool.setAttribute('aria-pressed', String(s.mode === 'string'));
+      erase.setAttribute('aria-pressed', String(s.mode === 'erase'));
       spool.style.setProperty('--yarn', s.yarn);
       mute.setAttribute('aria-pressed', String(s.muted));
       mute.querySelector('.lbl')!.textContent = s.muted ? 'Muted' : 'Sound';

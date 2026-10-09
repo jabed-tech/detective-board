@@ -3,13 +3,15 @@ import type { Store } from '../model/store';
 import type { Viewport } from '../view/viewport';
 import type { ConnectTool } from '../view/connect';
 import type { Selection } from './drawer';
+import type { Mode } from '../model/types';
 import { scaledGeom } from '../view/items';
 
 export interface KeyDeps {
   store: Store;
   viewport: Pick<Viewport, 'zoomBy' | 'fit'>;
   connect: ConnectTool;
-  setMode(m: 'move' | 'string'): void;
+  setMode(m: Mode): void;
+  clipboardKeys(): boolean;
   selection(): Selection;
   select(s: Selection): void;
   deleteSelected(): void;
@@ -25,7 +27,7 @@ export function bindKeys(d: KeyDeps): void {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); d.store.undo(); return; }
     if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); d.store.redo(); return; }
-    if (mod && !e.shiftKey && d.selection().kind === 'item') {
+    if (mod && !e.shiftKey && d.clipboardKeys() && d.selection().kind === 'item') {
       if (k.toLowerCase() === 'c') { e.preventDefault(); d.copy(); return; }
       if (k.toLowerCase() === 'd') { e.preventDefault(); d.duplicate(); return; }
     }
@@ -43,6 +45,7 @@ export function bindKeys(d: KeyDeps): void {
         break;
       case 'm': case 'M': d.setMode('move'); break;
       case 's': case 'S': d.setMode('string'); break;
+      case 'e': case 'E': d.setMode('erase'); break;
       case 'c': case 'C':
         if (sel.kind === 'item') d.connect.begin(sel.id);
         break;

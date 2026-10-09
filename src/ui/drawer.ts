@@ -123,7 +123,10 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
 
   function boardPanel(b: Board): Node[] {
     const name = h('input', { type: 'text', value: b.name, maxLength: 80 });
-    name.addEventListener('input', debounce(() => commit(x => ({ ...x, name: name.value.trim() || 'Untitled case' }))));
+    const id = b.id; // only ever rename the case this input was built for
+    const rename = () => commit(x => { const n = name.value.trim() || 'Untitled case'; return x.id !== id || x.name === n ? x : { ...x, name: n }; });
+    name.addEventListener('input', debounce(rename));
+    name.addEventListener('change', rename);
     const file = h('input', { type: 'file', accept: '.json,application/json', className: 'visually-hidden', tabIndex: -1 });
     file.addEventListener('change', () => { const f = file.files?.[0]; if (f) deps.importBoard(f); file.value = ''; });
     return [

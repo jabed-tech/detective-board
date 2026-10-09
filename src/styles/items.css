@@ -124,7 +124,8 @@
 .fastener .pin { position: relative; margin: 0; width: 48px; height: 30px; pointer-events: none; cursor: inherit; }
 
 /* Move / String modes */
-#world[data-mode="move"] .pin { pointer-events: none; }
+#world[data-mode="move"] .pin, #world[data-mode="erase"] .pin { pointer-events: none; }
+#world[data-mode="erase"] .item, #world[data-mode="erase"] .str-hit { cursor: crosshair; }
 #world[data-mode="string"] .item { cursor: crosshair; }
 .anchor-pin {
   position: absolute; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; pointer-events: none;

@@ -3,7 +3,7 @@ import { createConnect } from './connect';
 import { createStore } from '../model/store';
 import { addItem, makeItem, newBoard } from '../model/actions';
 
-function setup() {
+function setup(free = true) {
   let b = newBoard('t', 1);
   const a = makeItem('sticky', 500, 500);
   const c = makeItem('sticky', 900, 500);
@@ -17,6 +17,7 @@ function setup() {
     sfx: { pluck: vi.fn() },
     color: () => '#1f5fae',
     tension: () => 0.4,
+    freeAnchors: () => free,
     announce: vi.fn(),
     onModeChange: vi.fn(),
     select: vi.fn(),
@@ -50,6 +51,14 @@ describe('connect tool', () => {
     tool.tap(c.id, { u: -0.3, v: 0.4 });
     const l = store.get().links[0];
     expect([l.fromAt, l.toAt]).toEqual([{ u: 0.1, v: 0.2 }, { u: -0.3, v: 0.4 }]);
+  });
+  it('stores no anchors when free anchors are off', () => {
+    const { tool, store, a, c } = setup(false);
+    tool.setMode(true);
+    tool.tap(a.id, { u: 0.1, v: 0.2 });
+    tool.tap(c.id, { u: -0.3, v: 0.4 });
+    const l = store.get().links[0];
+    expect([l.fromAt, l.toAt]).toEqual([undefined, undefined]);
   });
   it('tapping the pending item again cancels', () => {
     const { tool, a } = setup();

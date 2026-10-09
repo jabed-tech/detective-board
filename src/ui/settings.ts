@@ -25,6 +25,10 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
       neat.addEventListener('change', () => deps.setPrefs({ neatHand: neat.checked }));
       const tilt = h('input', { type: 'checkbox', checked: p.tiltNew });
       tilt.addEventListener('change', () => deps.setPrefs({ tiltNew: tilt.checked }));
+      const clipKeys = h('input', { type: 'checkbox', checked: p.clipboardKeys });
+      clipKeys.addEventListener('change', () => deps.setPrefs({ clipboardKeys: clipKeys.checked }));
+      const freeAnchors = h('input', { type: 'checkbox', checked: p.freeAnchors });
+      freeAnchors.addEventListener('change', () => deps.setPrefs({ freeAnchors: freeAnchors.checked }));
       const droop = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(p.defaultTension) });
       droop.addEventListener('change', () => deps.setPrefs({ defaultTension: Number(droop.value) }));
       const usage = h('p', { className: 'hint' }, 'Storage size unavailable in this browser.');
@@ -39,7 +43,10 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
         field('Volume', vol),
         h('label', { className: 'opt' }, neat, 'Neat handwriting (easier to read)'),
         h('label', { className: 'opt' }, tilt, 'Tilt new items slightly (more natural look)'),
+        h('label', { className: 'opt' }, clipKeys, 'Copy & paste shortcuts (Ctrl/⌘+C, V, D)'),
         field('New string droop', droop),
+        h('h3', {}, 'Advanced'),
+        h('label', { className: 'opt' }, freeAnchors, 'Pin strings where I drop them'),
         h('p', { className: 'hint' }, 'Everything stays on this device. Nothing is uploaded, ever.'),
         usage,
         h('div', { className: 'row' }, button('Burn the files', () => { dialog.close(); deps.burnAll(); }, 'btn danger'), button('Close', () => dialog.close())),

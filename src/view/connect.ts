@@ -13,6 +13,7 @@ export interface ConnectDeps {
   sfx: { pluck(): void };
   color(): string;
   tension(): number;
+  freeAnchors(): boolean;
   announce(msg: string): void;
   onModeChange(on: boolean): void;
   select(itemId: string): void;
@@ -36,7 +37,8 @@ export function createConnect(d: ConnectDeps): ConnectTool {
 
   function link(a: string, b: string, aAt?: Anchor, bAt?: Anchor): boolean {
     const board = d.store.get();
-    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension(), fromAt: aAt, toAt: bAt });
+    const free = d.freeAnchors();
+    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension(), fromAt: free ? aAt : undefined, toAt: free ? bAt : undefined });
     if (next === board) {
       if (a !== b) d.announce('Those two are already connected.');
       return false;
@@ -71,8 +73,11 @@ export function createConnect(d: ConnectDeps): ConnectTool {
       const sx = e.clientX;
       const sy = e.clientY;
       let moved = false;
+      let aborted = false;
       const move = (ev: PointerEvent) => {
         if (ev.pointerId !== e.pointerId) return;
+        if (d.viewport.pinching()) { aborted = true; d.strings.preview(null); return; }
+        if (aborted) return;
         if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) moved = true;
         if (moved) d.strings.preview(start, d.viewport.toWorld(ev.clientX, ev.clientY), d.color());
       };
@@ -82,8 +87,9 @@ export function createConnect(d: ConnectDeps): ConnectTool {
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
         d.strings.preview(null);
-        if (ev.type === 'pointercancel') return;
+        if (aborted || ev.type === 'pointercancel') return;
         if (!moved) { if (!tool.tap(fromId, startAt)) d.select(fromId); return; }
+        setFrom(null); // a drag replaces any pending tap source
         const under = document.elementFromPoint(ev.clientX, ev.clientY);
         const hit = under?.closest<HTMLElement>('[data-item-id], [data-pin-for]');
         const toId = hit?.dataset.itemId ?? hit?.dataset.pinFor;

@@ -6,7 +6,7 @@ import './styles/strings.css';
 import './styles/mood.css';
 import './styles/chrome.css';
 
-import { YARN_COLORS, type Board, type Item, type ItemType } from './model/types';
+import { YARN_COLORS, type Board, type Item, type ItemType, type Mode } from './model/types';
 import { createStore } from './model/store';
 import { addItem, makeItem, newBoard, newId, removeItem, removeLink, updateItem, updateLink } from './model/actions';
 import { clearPrefs, loadPrefs, savePrefs, type Prefs } from './prefs';
@@ -64,6 +64,7 @@ async function boot() {
   const announce = (msg: string) => { live.textContent = ''; requestAnimationFrame(() => { live.textContent = msg; }); };
   let sel: Selection = { kind: 'none' };
   let yarn: string = YARN_COLORS[0];
+  let mode: Mode = 'move';
 
   function setPrefs(patch: Partial<Prefs>) {
     prefs = { ...prefs, ...patch };
@@ -82,6 +83,8 @@ async function boot() {
     reducedMotion,
     scale: () => viewport.get().scale,
     onSelect: id => select({ kind: 'link', id }),
+    erasing: () => mode === 'erase',
+    onErase: id => erase(b => removeLink(b, id)),
     onTensionCommit: (id, tension) => store.commit(updateLink(store.get(), id, { tension })),
   });
   const items = createItems($('items'), $('pins'), {
@@ -89,23 +92,26 @@ async function boot() {
     getImageUrl: id => imageUrl(id, db.getBlob),
     onSelect: id => select({ kind: 'item', id }),
     onItemTap: id => connect.tap(id),
-    mode: () => (connect.mode() ? 'string' : 'move'),
+    mode: () => mode,
+    onErase: id => erase(b => removeItem(b, id)),
     onStringPointerDown: (id, e) => {
       const it = store.get().items.find(i => i.id === id);
       const w = viewport.toWorld(e.clientX, e.clientY);
       const onPin = !!(e.target as Element).closest('.pin');
-      connect.stringDrag(id, e, it && !onPin ? toAnchor(it, w.x, w.y) : undefined);
+      connect.stringDrag(id, e, it && !onPin && prefs.freeAnchors ? toAnchor(it, w.x, w.y) : undefined);
     },
   });
   const connect = createConnect({
     store, viewport, strings, items, sfx,
     color: () => yarn,
     tension: () => prefs.defaultTension,
+    freeAnchors: () => prefs.freeAnchors,
     announce,
-    onModeChange: on => {
-      $('world').dataset.mode = on ? 'string' : 'move';
+    onModeChange: () => {
+      $('world').dataset.mode = mode;
       items.refreshHandles();
-      if (on) toast('String mode.', 'Drag from one item to another — the string sticks where you let go.');
+      if (mode === 'string') toast('String mode.', prefs.freeAnchors ? 'Drag from one item to another — the string sticks where you let go.' : 'Drag from one item to another to string them together.');
+      if (mode === 'erase') toast('Erase mode.', 'Tap anything to take it down. Ctrl+Z puts it back.');
       refreshDesk();
     },
     select: id => select({ kind: 'item', id }),
@@ -143,14 +149,19 @@ async function boot() {
     toggleMute: () => setPrefs({ sfx: !prefs.sfx }),
     openCaseFile: () => select({ kind: 'board' }),
     openSettings: () => settings.open(),
-    copy: () => void copySelected(),
-    paste: () => void pasteButton(),
   });
-  function setMode(m: 'move' | 'string') {
-    if (connect.mode() !== (m === 'string')) connect.setMode(m === 'string');
+  function setMode(m: Mode) {
+    if (m === mode) return;
+    mode = m;
+    connect.setMode(m === 'string'); // also runs onModeChange
+  }
+  function erase(fn: (b: Board) => Board) {
+    store.commit(fn(store.get()));
+    sfx.rustle();
+    announce('Removed.');
   }
   function refreshDesk() {
-    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), mode: connect.mode() ? 'string' : 'move', yarn, muted: !prefs.sfx });
+    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), mode, yarn, muted: !prefs.sfx });
   }
 
   function updateLight() {
@@ -259,9 +270,9 @@ async function boot() {
     const s = sel;
     const item = s.kind === 'item' ? store.get().items.find(i => i.id === s.id) : undefined;
     if (!item) { toast('Nothing to copy.', 'Select an item first.'); return false; }
+    navigator.clipboard?.writeText(serializeItem(item)).catch(() => {}); // must run inside the gesture, before any await (Safari)
     const id = item.data.imageId;
     clip = { item, blob: id ? await db.getBlob(id) : undefined };
-    navigator.clipboard?.writeText(serializeItem(item)).catch(() => {});
     toast('Copied.');
     announce('Copied.');
     return true;
@@ -298,24 +309,8 @@ async function boot() {
     toast('Nothing to paste.', 'Copy an item, an image or some text first.');
   }
 
-  async function pasteButton() {
-    let image: Blob | undefined;
-    let text = '';
-    try {
-      for (const ci of await navigator.clipboard.read()) {
-        const type = ci.types.find(t => t.startsWith('image/'));
-        if (type) { image = await ci.getType(type); break; }
-        if (!text && ci.types.includes('text/plain')) text = await (await ci.getType('text/plain')).text();
-      }
-    } catch {
-      if (clip) return pasteItem(clip.item, clip.blob);
-      toast('The browser kept the clipboard locked.', 'Press Ctrl+V (⌘+V on Mac) to paste instead.');
-      return;
-    }
-    await pasteFrom(image, text);
-  }
-
   document.addEventListener('paste', e => {
+    if (!prefs.clipboardKeys) return;
     if ((e.target as Element).closest('input, textarea, select, dialog, [contenteditable]')) return;
     e.preventDefault();
     const image = [...(e.clipboardData?.items ?? [])].find(i => i.kind === 'file' && i.type.startsWith('image/'))?.getAsFile() ?? undefined;
@@ -340,7 +335,7 @@ async function boot() {
     await autosave.flush();
     const b = await db.loadBoard(id);
     if (!b) return;
-    connect.setMode(false);
+    setMode('move');
     revokeAllImageUrls();
     select({ kind: 'none' });
     store.load(b);
@@ -416,14 +411,14 @@ async function boot() {
     location.reload();
   }
 
-  bindKeys({ store, viewport, connect, setMode, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected() });
+  bindKeys({ store, viewport, connect, setMode, clipboardKeys: () => prefs.clipboardKeys, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected() });
 
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });
 
   // First paint
   setPrefs({ lastBoardId: board.id, ...(prefs.lastExportAt ? {} : { lastExportAt: Date.now() }) });
-  $('world').dataset.mode = 'move';
+  $('world').dataset.mode = mode;
   strings.sync(board, true);
   items.sync(board);
   tabs.render();

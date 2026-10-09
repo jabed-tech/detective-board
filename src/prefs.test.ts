@@ -30,6 +30,16 @@ describe('prefs', () => {
     expect(q.tiltNew).toBe(false);
     expect(q.lastFastener).toBe('clip');
   });
+  it('defaults and validates clipboardKeys / freeAnchors', () => {
+    expect(DEFAULT_PREFS.clipboardKeys).toBe(true);
+    expect(DEFAULT_PREFS.freeAnchors).toBe(false);
+    const p = loadPrefs(fakeStorage(JSON.stringify({ clipboardKeys: 'no', freeAnchors: 1 })));
+    expect(p.clipboardKeys).toBe(true);
+    expect(p.freeAnchors).toBe(false);
+    const q = loadPrefs(fakeStorage(JSON.stringify({ clipboardKeys: false, freeAnchors: true })));
+    expect(q.clipboardKeys).toBe(false);
+    expect(q.freeAnchors).toBe(true);
+  });
   it('round-trips', () => {
     const s = fakeStorage();
     savePrefs({ ...DEFAULT_PREFS, neatHand: true, lastBoardId: 'abc' }, s);

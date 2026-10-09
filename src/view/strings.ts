@@ -8,6 +8,8 @@ export interface StringsDeps {
   reducedMotion(): boolean;
   scale(): number;
   onSelect(linkId: string): void;
+  erasing(): boolean;
+  onErase(linkId: string): void;
   onTensionCommit(linkId: string, tension: number): void;
 }
 export interface StringsView {
@@ -93,6 +95,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
   hitSvg.addEventListener('pointermove', ev => {
     if (!tdrag || ev.pointerId !== tdrag.pointerId) return;
     const dy = (ev.clientY - tdrag.sy) / deps.scale();
+    if (deps.erasing()) return; // in Erase mode a tap deletes; no tension drag
     if (Math.abs(dy) > 4) tdrag.moved = true;
     const e = entries.get(tdrag.id);
     if (!e || !tdrag.moved) return;
@@ -107,6 +110,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     tdrag = null;
     if (ev.type === 'pointercancel') return;
     if (d.moved) deps.onTensionCommit(d.id, d.t);
+    else if (deps.erasing()) deps.onErase(d.id);
     else deps.onSelect(d.id);
   };
   hitSvg.addEventListener('pointerup', up);

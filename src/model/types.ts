@@ -50,3 +50,5 @@ export const FASTENERS: { id: FastenerId; name: string }[] = [
 
 export const PIN_COLORS = ['#c0392b', '#1f5fae', '#2f7d32', '#e0b000', '#ece6d6', '#6a3d9a'] as const;
 export const YARN_COLORS = ['#b3261e', '#1f5fae', '#2f7d32', '#e0b000', '#ece6d6', '#1d1d1d', '#6a3d9a', '#d9661f'] as const;
+
+export type Mode = 'move' | 'string' | 'erase';

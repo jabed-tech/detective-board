@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, ITEM_SIZES, type Anchor, type Board, type Item } from '../model/types';
+import { BOARD_H, BOARD_W, ITEM_SIZES, type Anchor, type Board, type Item, type Mode } from '../model/types';
 import { anchorPoint, clamp, pinPoint } from '../model/geometry';
 import { bringToFront, updateItem } from '../model/actions';
 import type { Store } from '../model/store';
@@ -30,14 +30,15 @@ export function scaledGeom(it: Item, f: number): Pick<Item, 'x' | 'y' | 'w' | 'h
 
 export interface ItemsDeps {
   store: Store;
-  viewport: Pick<Viewport, 'el' | 'get' | 'pinching' | 'toWorld'>;
+  viewport: Pick<Viewport, 'el' | 'get' | 'pinching' | 'toWorld' | 'onChange'>;
   strings: { override(itemId: string, pos: (Pt & { rot?: number; w?: number; h?: number }) | null): void };
   sfx: Pick<Sfx, 'thunk' | 'rustle'>;
   getImageUrl(id: string): Promise<string | undefined>;
   reducedMotion(): boolean;
   onSelect(id: string): void;
   onItemTap(id: string): boolean;
-  mode(): 'move' | 'string';
+  mode(): Mode;
+  onErase(id: string): void;
   onStringPointerDown(id: string, e: PointerEvent): void;
 }
 export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; refreshHandles(): void }
@@ -53,6 +54,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
   let selectedId: string | null = null;
   let connectFrom: string | null = null;
   let drag: Drag | null = null;
+  let erasing: { id: string; pointerId: number; sx: number; sy: number } | null = null;
   let pressing = false; // suppress focus→select while a pointer is down
 
   const norm = (r: number) => ((((r + 180) % 360) + 360) % 360) - 180;
@@ -67,17 +69,21 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
 
   function refreshHandle() {
     const e = selectedId ? entries.get(selectedId) : undefined;
-    handle.hidden = resizeHandle.hidden = !e || !!drag?.moved || deps.mode() === 'string';
+    const scale = deps.viewport.get().scale;
+    const tiny = !!e && !rotDrag && !resDrag && Math.min(e.item.w, e.item.h) * scale < 64; // handles would cover the item
+    handle.hidden = resizeHandle.hidden = !e || !!drag?.moved || deps.mode() !== 'move' || tiny;
     if (!e || handle.hidden) return;
     const it = e.item;
     const r = ((rotDrag?.id === it.id ? rotDrag.rot : it.rot) * Math.PI) / 180;
-    const lx = it.w / 2 + 20, ly = -it.h / 2 - 20; // top-right corner pushed out ~28px diagonally
+    const pad = 30 / scale; // fixed distance on screen, not on the board
+    const lx = it.w / 2 + pad, ly = -it.h / 2 - pad;
     const x = it.x + it.w / 2 + lx * Math.cos(r) - ly * Math.sin(r);
     const y = it.y + it.h / 2 + lx * Math.sin(r) + ly * Math.cos(r);
     handle.style.transform = `translate(${x}px, ${y}px)`;
     const cx = it.x + it.w / 2, cy = it.y + it.h / 2;
-    const bx = cx + (it.w / 2) * Math.cos(r) - (it.h / 2) * Math.sin(r); // bottom-right corner
-    const by = cy + (it.w / 2) * Math.sin(r) + (it.h / 2) * Math.cos(r);
+    const rx = it.w / 2 + pad, ry = it.h / 2 + pad; // bottom-right corner, pushed out
+    const bx = cx + rx * Math.cos(r) - ry * Math.sin(r);
+    const by = cy + rx * Math.sin(r) + ry * Math.cos(r);
     resizeHandle.style.transform = `translate(${bx}px, ${by}px)`;
   }
 
@@ -266,6 +272,11 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     const e = entries.get(id);
     if (!e) return;
     if (deps.mode() === 'string') { deps.onStringPointerDown(id, ev); return; }
+    if (deps.mode() === 'erase') {
+      erasing = { id, pointerId: ev.pointerId, sx: ev.clientX, sy: ev.clientY };
+      e.el.setPointerCapture(ev.pointerId);
+      return;
+    }
     pressing = true;
     drag = { id, pointerId: ev.pointerId, sx: ev.clientX, sy: ev.clientY, ox: e.item.x, oy: e.item.y, x: e.item.x, y: e.item.y, moved: false };
     e.el.setPointerCapture(ev.pointerId);
@@ -311,9 +322,16 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
       e.body.classList.add('settle');
     }
   }
-  layer.addEventListener('pointerup', ev => endDrag(ev.pointerId, false));
-  layer.addEventListener('pointercancel', ev => endDrag(ev.pointerId, true));
-  deps.viewport.el.addEventListener('viewport:pinch', () => { if (drag) endDrag(drag.pointerId, true); });
+  function endErase(ev: PointerEvent, cancelled: boolean) {
+    if (!erasing || ev.pointerId !== erasing.pointerId) return;
+    const d = erasing;
+    erasing = null;
+    if (!cancelled && !deps.viewport.pinching() && Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) < 5) deps.onErase(d.id);
+  }
+  layer.addEventListener('pointerup', ev => { endDrag(ev.pointerId, false); endErase(ev, false); });
+  layer.addEventListener('pointercancel', ev => { endDrag(ev.pointerId, true); endErase(ev, true); });
+  deps.viewport.el.addEventListener('viewport:pinch', () => { erasing = null; if (drag) endDrag(drag.pointerId, true); });
+  deps.viewport.onChange(refreshHandle); // handle offset depends on zoom
 
   return {
     sync(board) {
