@@ -8,7 +8,7 @@ import './styles/chrome.css';
 
 import { YARN_COLORS, type Board, type Item, type ItemType } from './model/types';
 import { createStore } from './model/store';
-import { addItem, makeItem, newBoard, newId, removeItem, removeLink, updateLink } from './model/actions';
+import { addItem, makeItem, newBoard, newId, removeItem, removeLink, updateItem, updateLink } from './model/actions';
 import { clearPrefs, loadPrefs, savePrefs, type Prefs } from './prefs';
 import { openDb, type BoardMeta } from './storage/db';
 import { createAutosave } from './storage/autosave';
@@ -105,6 +105,7 @@ async function boot() {
     importBoard: f => void doImport(f),
     clearBoard: () => void clearBoard(),
     deleteCase: () => void deleteCase(),
+    pickPhoto: id => void pickPhoto(id),
     setYarn: c => { yarn = c; refreshDesk(); },
     setLastFastener: id => setPrefs({ lastFastener: id }),
   });
@@ -180,25 +181,45 @@ async function boot() {
     toast(`Atmosphere: ${next}.`);
   });
 
-  async function addNew(type: ItemType) {
+  // File picker → processed blob stored under a new id. Toasts and returns null on failure.
+  async function uploadPhoto(): Promise<{ imageId: string; w: number; h: number } | null> {
+    const file = await pickFile('image/*');
+    if (!file) return null;
+    try {
+      const img = await processImage(file);
+      const imageId = newId();
+      await db.putBlob(imageId, img.blob);
+      return { imageId, w: img.w, h: img.h };
+    } catch (e) {
+      if (e instanceof ImageReadError) toast("Photo won't develop.", "That file type isn't supported (HEIC?). Try a JPG or PNG.");
+      else storageError();
+      return null;
+    }
+  }
+
+  async function pickPhoto(itemId: string) {
+    const up = await uploadPhoto();
+    if (!up) return;
+    const cur = store.get().items.find(i => i.id === itemId);
+    if (!cur) return;
+    const { unknown: _unknown, ...data } = cur.data;
+    items.markFresh(itemId);
+    store.commit(updateItem(store.get(), itemId, { data: { ...data, imageId: up.imageId } }));
+  }
+
+  async function addNew(type: ItemType | 'unknown') {
     const c = viewport.centerWorld();
+    const opts = { attach: prefs.lastFastener, tilt: prefs.tiltNew };
     let it: Item;
-    if (type === 'photo' || type === 'polaroid') {
-      const file = await pickFile('image/*');
-      if (!file) return;
-      try {
-        const img = await processImage(file);
-        const imageId = newId();
-        await db.putBlob(imageId, img.blob);
-        const size = type === 'photo' ? { w: 260, h: Math.round((260 * img.h) / img.w) + 16 } : undefined;
-        it = makeItem(type, c.x, c.y, { imageId }, size, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew });
-      } catch (e) {
-        if (e instanceof ImageReadError) toast("Photo won't develop.", "That file type isn't supported (HEIC?). Try a JPG or PNG.");
-        else storageError();
-        return;
-      }
+    if (type === 'unknown') {
+      it = makeItem('polaroid', c.x, c.y, { unknown: true, caption: 'Unknown suspect' }, undefined, Math.random, opts);
+    } else if (type === 'photo' || type === 'polaroid') {
+      const up = await uploadPhoto();
+      if (!up) return;
+      const size = type === 'photo' ? { w: 260, h: Math.round((260 * up.h) / up.w) + 16 } : undefined;
+      it = makeItem(type, c.x, c.y, { imageId: up.imageId }, size, Math.random, opts);
     } else {
-      it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew });
+      it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, opts);
     }
     items.markFresh(it.id);
     store.commit(addItem(store.get(), it));

@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, type Board, type Item } from '../model/types';
+import { BOARD_H, BOARD_W, ITEM_SIZES, type Board, type Item } from '../model/types';
 import { clamp, pinPoint } from '../model/geometry';
 import { bringToFront, updateItem } from '../model/actions';
 import type { Store } from '../model/store';
@@ -8,6 +8,25 @@ import { FASTENERS } from '../model/types';
 import { itemLabel, renderItemContent } from './renderers';
 
 type Pt = { x: number; y: number };
+const MIN_SIZE = 80;
+const MAX_SIZE = 1200;
+
+/** Resize about the top-left corner as it sits in the item's rotated frame. */
+function sized(it: Item, w: number, h: number): Item {
+  const r = (it.rot * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+  const tlx = it.x + it.w / 2 + (-it.w / 2) * c - (-it.h / 2) * s; // top-left corner stays put
+  const tly = it.y + it.h / 2 + (-it.w / 2) * s + (-it.h / 2) * c;
+  const cx = tlx + (w / 2) * c - (h / 2) * s;
+  const cy = tly + (w / 2) * s + (h / 2) * c;
+  return { ...it, w, h, x: cx - w / 2, y: cy - h / 2 };
+}
+
+/** Uniform scale by f (clamped to 80–1200 on both sides) for keys and the drawer slider. */
+export function scaledGeom(it: Item, f: number): Pick<Item, 'x' | 'y' | 'w' | 'h'> {
+  const k = Math.min(MAX_SIZE / it.w, MAX_SIZE / it.h, Math.max(MIN_SIZE / it.w, MIN_SIZE / it.h, f));
+  const { x, y, w, h } = sized(it, it.w * k, it.h * k);
+  return { x, y, w, h };
+}
 
 export interface ItemsDeps {
   store: Store;
@@ -45,7 +64,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
 
   function refreshHandle() {
     const e = selectedId ? entries.get(selectedId) : undefined;
-    handle.hidden = !e || !!drag?.moved;
+    handle.hidden = resizeHandle.hidden = !e || !!drag?.moved;
     if (!e || handle.hidden) return;
     const it = e.item;
     const r = ((rotDrag?.id === it.id ? rotDrag.rot : it.rot) * Math.PI) / 180;
@@ -53,7 +72,71 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     const x = it.x + it.w / 2 + lx * Math.cos(r) - ly * Math.sin(r);
     const y = it.y + it.h / 2 + lx * Math.sin(r) + ly * Math.cos(r);
     handle.style.transform = `translate(${x}px, ${y}px)`;
+    const cx = it.x + it.w / 2, cy = it.y + it.h / 2;
+    const bx = cx + (it.w / 2) * Math.cos(r) - (it.h / 2) * Math.sin(r); // bottom-right corner
+    const by = cy + (it.w / 2) * Math.sin(r) + (it.h / 2) * Math.cos(r);
+    resizeHandle.style.transform = `translate(${bx}px, ${by}px)`;
   }
+
+  // Resize: project the pointer's world delta onto the item's rotated axes, keep the top-left corner fixed.
+  interface ResDrag { id: string; pointerId: number; p0: Pt; it0: Item; live: Item }
+  let resDrag: ResDrag | null = null;
+  const resizeHandle = document.createElement('button');
+  resizeHandle.type = 'button';
+  resizeHandle.className = 'resize-handle';
+  resizeHandle.textContent = '⤡';
+  resizeHandle.hidden = true;
+  resizeHandle.setAttribute('aria-label', 'Resize — drag the corner');
+  pinsLayer.append(resizeHandle);
+
+  const keepsAspect = (it: Item) => it.type === 'photo' || it.type === 'polaroid';
+  function resizeTo(it: Item, nw: number, nh: number): Item {
+    if (keepsAspect(it)) {
+      const k = Math.min(MAX_SIZE / it.w, MAX_SIZE / it.h, Math.max(MIN_SIZE / it.w, MIN_SIZE / it.h, Math.max(nw / it.w, nh / it.h)));
+      return sized(it, it.w * k, it.h * k);
+    }
+    return sized(it, clamp(nw, MIN_SIZE, MAX_SIZE), clamp(nh, MIN_SIZE, MAX_SIZE));
+  }
+  resizeHandle.addEventListener('pointerdown', ev => {
+    const e = selectedId ? entries.get(selectedId) : undefined;
+    if (ev.button !== 0 || !e || rotDrag || resDrag || drag || deps.viewport.pinching()) return;
+    ev.stopPropagation(); ev.preventDefault();
+    resDrag = { id: e.item.id, pointerId: ev.pointerId, p0: deps.viewport.toWorld(ev.clientX, ev.clientY), it0: e.item, live: e.item };
+    resizeHandle.setPointerCapture(ev.pointerId);
+    deps.sfx.rustle();
+  });
+  resizeHandle.addEventListener('pointermove', ev => {
+    if (!resDrag || ev.pointerId !== resDrag.pointerId) return;
+    const e = entries.get(resDrag.id);
+    if (!e) return;
+    const { it0 } = resDrag;
+    const p = deps.viewport.toWorld(ev.clientX, ev.clientY);
+    const dx = p.x - resDrag.p0.x, dy = p.y - resDrag.p0.y;
+    const r = (it0.rot * Math.PI) / 180;
+    const live = resizeTo(it0, it0.w + dx * Math.cos(r) + dy * Math.sin(r), it0.h - dx * Math.sin(r) + dy * Math.cos(r));
+    resDrag.live = live;
+    e.item = live;
+    applyGeom(e);
+    deps.strings.override(live.id, { x: live.x, y: live.y, rot: live.rot });
+    refreshHandle();
+  });
+  function endRes(ev: PointerEvent, cancelled: boolean) {
+    if (!resDrag || ev.pointerId !== resDrag.pointerId) return;
+    const d = resDrag;
+    resDrag = null;
+    deps.strings.override(d.id, null);
+    const e = entries.get(d.id);
+    if (!e) return;
+    if (cancelled) { e.item = d.it0; applyGeom(e); }
+    else {
+      const { x, y, w, h } = d.live;
+      deps.store.commit(updateItem(deps.store.get(), d.id, { x, y, w, h }));
+    }
+    refreshHandle();
+  }
+  resizeHandle.addEventListener('pointerup', ev => endRes(ev, false));
+  resizeHandle.addEventListener('pointercancel', ev => endRes(ev, true));
+  resizeHandle.addEventListener('lostpointercapture', ev => endRes(ev, true)); // no-op after a normal end
 
   const angleOf = (ev: PointerEvent, it: Item) => {
     const w = deps.viewport.toWorld(ev.clientX, ev.clientY);
@@ -61,7 +144,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
   };
   handle.addEventListener('pointerdown', ev => {
     const e = selectedId ? entries.get(selectedId) : undefined;
-    if (ev.button !== 0 || !e || rotDrag || drag || deps.viewport.pinching()) return;
+    if (ev.button !== 0 || !e || rotDrag || resDrag || drag || deps.viewport.pinching()) return;
     ev.stopPropagation(); ev.preventDefault();
     rotDrag = { id: e.item.id, pointerId: ev.pointerId, a0: angleOf(ev, e.item), r0: e.item.rot, rot: e.item.rot };
     handle.setPointerCapture(ev.pointerId);
@@ -100,6 +183,14 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.pin.style.transform = `translate(${p.x}px, ${p.y}px)`;
   }
 
+  function applyGeom(e: Entry) {
+    const it = e.item;
+    e.el.style.width = `${it.w}px`;
+    e.el.style.height = `${it.h}px`;
+    e.el.style.setProperty('--k', String(it.w / ITEM_SIZES[it.type].w)); // text scales with the card
+    place(e, it.x, it.y);
+  }
+
   function create(it: Item): Entry {
     const el = document.createElement('div');
     el.className = `item item-${it.type}`;
@@ -127,12 +218,13 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.item = it;
     e.el.style.width = `${it.w}px`;
     e.el.style.height = `${it.h}px`;
+    e.el.style.setProperty('--k', String(it.w / ITEM_SIZES[it.type].w));
     e.el.style.zIndex = String(it.z);
     e.el.setAttribute('aria-label', itemLabel(it));
     e.pin.style.setProperty('--pin', it.attachColor);
     e.pin.dataset.kind = it.attach;
     e.pin.setAttribute('aria-label', `${FASTENERS.find(f => f.id === it.attach)?.name ?? 'Push pin'} — drag to another item to connect`);
-    if ((!drag || drag.id !== it.id) && rotDrag?.id !== it.id) place(e, it.x, it.y);
+    if ((!drag || drag.id !== it.id) && rotDrag?.id !== it.id && resDrag?.id !== it.id) place(e, it.x, it.y);
     e.el.classList.toggle('selected', it.id === selectedId);
     e.el.classList.toggle('connect-from', it.id === connectFrom);
 

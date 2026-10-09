@@ -25,7 +25,15 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
     }
     case 'polaroid': {
       const win = add(body, 'div', 'pol-window');
-      if (it.data.imageId) photo(win); else add(win, 'div', 'pol-silhouette');
+      if (it.data.imageId) photo(win);
+      else {
+        add(win, 'div', 'pol-silhouette');
+        if (it.data.unknown) {
+          const q = add(win, 'span', 'pol-unknown');
+          q.textContent = '?';
+          q.setAttribute('aria-hidden', 'true');
+        }
+      }
       add(body, 'p', 'pol-cap').textContent = it.data.caption ?? '';
       break;
     }
@@ -38,5 +46,6 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
 
 export function itemLabel(it: Item): string {
   const t = (it.data.text ?? it.data.caption ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
-  return t ? `${NAMES[it.type]}: ${t}` : NAMES[it.type];
+  const name = it.data.unknown && !it.data.imageId ? 'Unknown person' : NAMES[it.type];
+  return t ? `${name}: ${t}` : name;
 }

@@ -5,7 +5,7 @@ export type FastenerId = 'pin' | 'tack' | 'tape' | 'magnet' | 'clip';
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
 export type Atmosphere = 'full' | 'gentle' | 'off';
 
-export interface ItemData { imageId?: string; text?: string; caption?: string }
+export interface ItemData { imageId?: string; text?: string; caption?: string; unknown?: boolean }
 
 export interface Item {
   id: string; type: ItemType;

@@ -1,13 +1,14 @@
-import { FASTENERS, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
+import { FASTENERS, ITEM_SIZES, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
 import { bringToFront, removeItem, removeLink, updateItem, updateLink } from '../model/actions';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
+import { scaledGeom } from '../view/items';
 
 export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; id: string } | { kind: 'link'; id: string };
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
   exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void;
-  setYarn(c: string): void; setLastFastener(id: FastenerId): void;
+  pickPhoto(itemId: string): void; setYarn(c: string): void; setLastFastener(id: FastenerId): void;
 }
 
 const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
@@ -53,6 +54,12 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       const cap = h('input', { type: 'text', value: it.data.caption ?? '', maxLength: 200 });
       cap.addEventListener('input', debounce(() => patchData({ caption: cap.value })));
       out.push(field('Caption', cap));
+      out.push(h('div', { className: 'row' }, button(it.data.imageId ? 'Replace photo' : 'Add photo', () => deps.pickPhoto(it.id))));
+      if (!it.data.imageId) {
+        const unk = h('input', { type: 'checkbox', checked: !!it.data.unknown });
+        unk.addEventListener('change', () => patchData({ unknown: unk.checked }));
+        out.push(h('label', { className: 'check' }, unk, ' Unknown (show ?)'));
+      }
     }
     const held = h('div', { className: 'fasteners' });
     held.setAttribute('role', 'radiogroup');
@@ -77,6 +84,13 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const tilt = h('input', { type: 'range', min: '-180', max: '180', step: '1', value: String(Math.round(it.rot)) });
     tilt.addEventListener('change', () => commit(b => updateItem(b, it.id, { rot: Number(tilt.value) })));
     out.push(field('Rotation', tilt));
+    const size = h('input', { type: 'range', min: '50', max: '300', step: '5', value: String(Math.round((it.w / ITEM_SIZES[it.type].w) * 100 / 5) * 5) });
+    size.addEventListener('change', () => commit(b => {
+      const cur = b.items.find(i => i.id === it.id);
+      return cur ? updateItem(b, it.id, scaledGeom(cur, (Number(size.value) / 100 * ITEM_SIZES[cur.type].w) / cur.w)) : b;
+    }));
+    out.push(field('Size', size));
+    out.push(h('p', { className: 'hint' }, 'Tip: drag the corner handle, or press , and . to shrink and grow.'));
     out.push(h('div', { className: 'row' },
       button('Bring to front', () => commit(b => bringToFront(b, it.id))),
       button('Take it down', () => commit(b => removeItem(b, it.id)), 'btn danger')));

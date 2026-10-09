@@ -67,6 +67,13 @@ describe('addItem / updateItem', () => {
     expect(it.x).toBe(BOARD_W - it.w);
     expect(it.y).toBe(0);
   });
+  it('keeps a resized item inside the board', () => {
+    const { b, a } = twoItems();
+    const edge = updateItem(b, a.id, { x: BOARD_W - 10 });
+    const it = updateItem(edge, a.id, { w: 1200, h: 1200 }).items.find(i => i.id === a.id)!;
+    expect(it.w).toBe(1200);
+    expect(it.x + it.w).toBeLessThanOrEqual(BOARD_W);
+  });
   it('returns the same board for a missing id', () => {
     const { b } = twoItems();
     expect(updateItem(b, 'nope', { x: 1 })).toBe(b);

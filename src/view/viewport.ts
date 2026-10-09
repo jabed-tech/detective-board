@@ -34,7 +34,7 @@ export function createViewport(el: HTMLElement, world: HTMLElement): Viewport {
   }
   const local = (cx: number, cy: number) => ({ x: cx - rect.left, y: cy - rect.top });
   const isBackground = (t: EventTarget | null) =>
-    !(t instanceof Element) || !t.closest('[data-item-id], [data-pin-for], [data-link-id], .rotate-handle');
+    !(t instanceof Element) || !t.closest('[data-item-id], [data-pin-for], [data-link-id], .rotate-handle, .resize-handle');
   function pinchState() {
     const [a, b] = [...pts.values()];
     const pa = local(a.x, a.y);

@@ -1,7 +1,7 @@
 import type { ItemType } from '../model/types';
 import { h } from './dom';
 
-export interface DeskDeps { addItem(t: ItemType): void; toggleConnect(): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; toggleConnect(): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
 export interface DeskState { canUndo: boolean; canRedo: boolean; connecting: boolean; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
@@ -28,7 +28,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
   add.setAttribute('aria-haspopup', 'menu');
   add.setAttribute('aria-expanded', 'false');
   const closeMenu = () => { menu.hidden = true; add.setAttribute('aria-expanded', 'false'); };
-  const choices: [ItemType, string][] = [['photo', 'Photograph'], ['polaroid', 'Polaroid'], ['sticky', 'Sticky note'], ['index', 'Index card']];
+  const choices: [ItemType | 'unknown', string][] = [['photo', 'Photograph'], ['polaroid', 'Polaroid'], ['unknown', 'Unknown person'], ['sticky', 'Sticky note'], ['index', 'Index card']];
   for (const [t, name] of choices) {
     const m = h('button', { type: 'button', textContent: name });
     m.setAttribute('role', 'menuitem');

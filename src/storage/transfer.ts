@@ -40,6 +40,7 @@ function validateItem(raw: unknown): Item | null {
   if (imageId) data.imageId = imageId;
   if (text !== undefined) data.text = text;
   if (caption !== undefined) data.caption = caption;
+  if (d.unknown === true) data.unknown = true;
   return {
     id, type, w, h,
     x: num(raw.x, 0, BOARD_W - w, 0),

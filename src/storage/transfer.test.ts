@@ -103,6 +103,13 @@ describe('sanitising', () => {
     expect(v.items).toHaveLength(2);
     expect(v.links).toHaveLength(1);
   });
+  it('keeps data.unknown only when boolean', () => {
+    const raw = JSON.parse(JSON.stringify(sample()));
+    raw.items[0].data.unknown = true;
+    expect(validateBoard(raw)!.items[0].data.unknown).toBe(true);
+    raw.items[0].data.unknown = 'yes';
+    expect(validateBoard(raw)!.items[0].data.unknown).toBeUndefined();
+  });
   it('truncates very long text', () => {
     const raw = JSON.parse(JSON.stringify(sample()));
     raw.items[1].data.text = 'x'.repeat(10000);

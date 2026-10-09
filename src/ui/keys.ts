@@ -3,6 +3,7 @@ import type { Store } from '../model/store';
 import type { Viewport } from '../view/viewport';
 import type { ConnectTool } from '../view/connect';
 import type { Selection } from './drawer';
+import { scaledGeom } from '../view/items';
 
 export interface KeyDeps {
   store: Store;
@@ -42,6 +43,13 @@ export function bindKeys(d: KeyDeps): void {
         if (!it) break;
         const r = it.rot + (k === '[' ? -1 : 1) * (e.shiftKey ? 15 : 5);
         d.store.commit(updateItem(d.store.get(), it.id, { rot: ((r + 540) % 360) - 180 }));
+        break;
+      }
+      case '.': case ',': { // '+'/'-' are zoom, so resize uses , and .
+        if (sel.kind !== 'item') break;
+        const it = d.store.get().items.find(i => i.id === sel.id);
+        if (!it) break;
+        d.store.commit(updateItem(d.store.get(), it.id, scaledGeom(it, k === '.' ? 1.1 : 1 / 1.1)));
         break;
       }
       case 'Enter':
