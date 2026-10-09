@@ -1,0 +1,76 @@
+import type { ItemType } from '../model/types';
+import { h } from './dom';
+
+export interface DeskDeps { addItem(t: ItemType): void; toggleConnect(): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskState { canUndo: boolean; canRedo: boolean; connecting: boolean; yarn: string; muted: boolean }
+
+function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
+  const o = h('span', { className: `obj obj-${obj}` });
+  o.setAttribute('aria-hidden', 'true');
+  const b = h('button', { type: 'button', className: 'desk-btn', title: aria }, o, h('span', { className: 'lbl' }, label));
+  b.setAttribute('aria-label', aria);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskState): void } {
+  const menu = h('div', { className: 'desk-menu', hidden: true });
+  menu.setAttribute('role', 'menu');
+  const add = deskBtn('tin', 'Add', 'Add evidence', () => {
+    menu.hidden = !menu.hidden;
+    add.setAttribute('aria-expanded', String(!menu.hidden));
+    if (!menu.hidden) (menu.firstElementChild as HTMLElement).focus();
+  });
+  add.setAttribute('aria-haspopup', 'menu');
+  add.setAttribute('aria-expanded', 'false');
+  const closeMenu = () => { menu.hidden = true; add.setAttribute('aria-expanded', 'false'); };
+  const choices: [ItemType, string][] = [['photo', 'Photograph'], ['polaroid', 'Polaroid'], ['sticky', 'Sticky note'], ['index', 'Index card']];
+  for (const [t, name] of choices) {
+    const m = h('button', { type: 'button', textContent: name });
+    m.setAttribute('role', 'menuitem');
+    m.addEventListener('click', () => { closeMenu(); deps.addItem(t); });
+    menu.append(m);
+  }
+  menu.addEventListener('keydown', e => {
+    const items = [...menu.querySelectorAll<HTMLElement>('[role=menuitem]')];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'Escape') { closeMenu(); add.focus(); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+  document.addEventListener('pointerdown', e => {
+    if (!menu.hidden && !menu.contains(e.target as Node) && !add.contains(e.target as Node)) closeMenu();
+  });
+
+  const spool = deskBtn('spool', 'String', 'String mode: tap two items to connect them', deps.toggleConnect);
+  spool.setAttribute('aria-pressed', 'false');
+  const zoomOut = deskBtn('minus', 'Zoom out', 'Zoom out', () => deps.zoom(0.8));
+  const zoomIn = deskBtn('plus', 'Zoom in', 'Zoom in', () => deps.zoom(1.25));
+  zoomOut.classList.add('wide-only');
+  zoomIn.classList.add('wide-only');
+  const undo = deskBtn('eraser', 'Undo', 'Undo', deps.undo);
+  const redo = deskBtn('pencil', 'Redo', 'Redo', deps.redo);
+  const mute = deskBtn('radio', 'Sound', 'Mute sound effects', deps.toggleMute);
+  mute.setAttribute('aria-pressed', 'false');
+
+  el.append(
+    h('div', { className: 'desk-add' }, add, menu),
+    spool,
+    deskBtn('glass', 'Fit', 'Fit board to screen', deps.fit),
+    zoomOut, zoomIn, undo, redo,
+    deskBtn('folder', 'Case', 'Case file: name, export, import', deps.openCaseFile),
+    mute,
+    deskBtn('match', 'Settings', 'Settings', deps.openSettings),
+  );
+
+  return {
+    update(s) {
+      undo.disabled = !s.canUndo;
+      redo.disabled = !s.canRedo;
+      spool.setAttribute('aria-pressed', String(s.connecting));
+      spool.style.setProperty('--yarn', s.yarn);
+      mute.setAttribute('aria-pressed', String(s.muted));
+      mute.querySelector('.lbl')!.textContent = s.muted ? 'Muted' : 'Sound';
+    },
+  };
+}
