@@ -31,6 +31,7 @@ import { showMemo } from './ui/memo';
 import { bindKeys } from './ui/keys';
 import { createDemoBoard } from './demo';
 import { toAnchor } from './model/geometry';
+import { offsetCopy, parseClipboardText, serializeItem } from './clipboard';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -142,6 +143,8 @@ async function boot() {
     toggleMute: () => setPrefs({ sfx: !prefs.sfx }),
     openCaseFile: () => select({ kind: 'board' }),
     openSettings: () => settings.open(),
+    copy: () => void copySelected(),
+    paste: () => void pasteButton(),
   });
   function setMode(m: 'move' | 'string') {
     if (connect.mode() !== (m === 'string')) connect.setMode(m === 'string');
@@ -199,7 +202,10 @@ async function boot() {
   // File picker → processed blob stored under a new id. Toasts and returns null on failure.
   async function uploadPhoto(): Promise<{ imageId: string; w: number; h: number } | null> {
     const file = await pickFile('image/*');
-    if (!file) return null;
+    return file ? storeImage(file) : null;
+  }
+
+  async function storeImage(file: Blob): Promise<{ imageId: string; w: number; h: number } | null> {
     try {
       const img = await processImage(file);
       const imageId = newId();
@@ -236,10 +242,88 @@ async function boot() {
     } else {
       it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, opts);
     }
+    place(it);
+  }
+
+  function place(it: Item) {
     items.markFresh(it.id);
     store.commit(addItem(store.get(), it));
     sfx.thunk();
     select({ kind: 'item', id: it.id });
+  }
+
+  // Copy / paste / duplicate
+  let clip: { item: Item; blob?: Blob } | null = null;
+
+  async function copySelected(): Promise<boolean> {
+    const s = sel;
+    const item = s.kind === 'item' ? store.get().items.find(i => i.id === s.id) : undefined;
+    if (!item) { toast('Nothing to copy.', 'Select an item first.'); return false; }
+    const id = item.data.imageId;
+    clip = { item, blob: id ? await db.getBlob(id) : undefined };
+    navigator.clipboard?.writeText(serializeItem(item)).catch(() => {});
+    toast('Copied.');
+    announce('Copied.');
+    return true;
+  }
+
+  async function pasteItem(src: Item, blob?: Blob) {
+    const c = offsetCopy(src);
+    const data = { ...c.data };
+    if (data.imageId) {
+      if (blob) {
+        const imageId = newId();
+        try { await db.putBlob(imageId, blob); } catch { storageError(); return; }
+        data.imageId = imageId;
+      } else delete data.imageId;
+    }
+    place({ ...c, data });
+  }
+
+  async function pasteImage(blob: Blob) {
+    const up = await storeImage(blob);
+    if (!up) return;
+    const c = viewport.centerWorld();
+    place(makeItem('photo', c.x, c.y, { imageId: up.imageId }, { w: 260, h: Math.round((260 * up.h) / up.w) + 16 }, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew }));
+  }
+
+  async function pasteFrom(image: Blob | undefined, text: string) {
+    if (image) return pasteImage(image);
+    const p = parseClipboardText(text);
+    if (p.kind === 'item') return pasteItem(p.item, clip?.item.id === p.item.id ? clip.blob : undefined);
+    if (p.kind === 'text') {
+      const c = viewport.centerWorld();
+      return place(makeItem('sticky', c.x, c.y, { text: p.text.slice(0, 5000) }, undefined, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew }));
+    }
+    toast('Nothing to paste.', 'Copy an item, an image or some text first.');
+  }
+
+  async function pasteButton() {
+    let image: Blob | undefined;
+    let text = '';
+    try {
+      for (const ci of await navigator.clipboard.read()) {
+        const type = ci.types.find(t => t.startsWith('image/'));
+        if (type) { image = await ci.getType(type); break; }
+        if (!text && ci.types.includes('text/plain')) text = await (await ci.getType('text/plain')).text();
+      }
+    } catch {
+      if (clip) return pasteItem(clip.item, clip.blob);
+      toast('The browser kept the clipboard locked.', 'Press Ctrl+V (⌘+V on Mac) to paste instead.');
+      return;
+    }
+    await pasteFrom(image, text);
+  }
+
+  document.addEventListener('paste', e => {
+    if ((e.target as Element).closest('input, textarea, select, dialog, [contenteditable]')) return;
+    e.preventDefault();
+    const image = [...(e.clipboardData?.items ?? [])].find(i => i.kind === 'file' && i.type.startsWith('image/'))?.getAsFile() ?? undefined;
+    void pasteFrom(image, e.clipboardData?.getData('text/plain') ?? '');
+  });
+
+  async function duplicateSelected() {
+    if (await copySelected() && clip) await pasteItem(clip.item, clip.blob);
   }
 
   function deleteSelected() {
@@ -332,7 +416,7 @@ async function boot() {
     location.reload();
   }
 
-  bindKeys({ store, viewport, connect, setMode, selection: () => sel, select, deleteSelected });
+  bindKeys({ store, viewport, connect, setMode, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected() });
 
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });

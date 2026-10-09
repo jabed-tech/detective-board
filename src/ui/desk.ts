@@ -1,7 +1,7 @@
 import type { ItemType } from '../model/types';
 import { h } from './dom';
 
-export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: 'move' | 'string'): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: 'move' | 'string'): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void; copy(): void; paste(): void }
 export interface DeskState { canUndo: boolean; canRedo: boolean; mode: 'move' | 'string'; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
@@ -67,6 +67,8 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
 
   el.append(
     h('div', { className: 'desk-add' }, add),
+    deskBtn('carbon', 'Copy', 'Copy the selected item (Ctrl+C)', deps.copy),
+    deskBtn('paste', 'Paste', 'Paste an item, image or text (Ctrl+V)', deps.paste),
     hand, spool,
     deskBtn('glass', 'Fit', 'Fit board to screen', deps.fit),
     zoomOut, zoomIn, undo, redo,

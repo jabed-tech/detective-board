@@ -13,6 +13,8 @@ export interface KeyDeps {
   selection(): Selection;
   select(s: Selection): void;
   deleteSelected(): void;
+  copy(): void;
+  duplicate(): void;
 }
 
 export function bindKeys(d: KeyDeps): void {
@@ -23,6 +25,10 @@ export function bindKeys(d: KeyDeps): void {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); d.store.undo(); return; }
     if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); d.store.redo(); return; }
+    if (mod && !e.shiftKey && d.selection().kind === 'item') {
+      if (k.toLowerCase() === 'c') { e.preventDefault(); d.copy(); return; }
+      if (k.toLowerCase() === 'd') { e.preventDefault(); d.duplicate(); return; }
+    }
     if (mod || e.altKey) return;
     const sel = d.selection();
     switch (k) {
