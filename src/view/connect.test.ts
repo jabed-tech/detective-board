@@ -43,6 +43,14 @@ describe('connect tool', () => {
     expect(tool.pending()).toBeNull();
     expect(tool.mode()).toBe(true); // stays on for chaining
   });
+  it('tap-tap stores the tapped anchors', () => {
+    const { tool, store, a, c } = setup();
+    tool.setMode(true);
+    tool.tap(a.id, { u: 0.1, v: 0.2 });
+    tool.tap(c.id, { u: -0.3, v: 0.4 });
+    const l = store.get().links[0];
+    expect([l.fromAt, l.toAt]).toEqual([{ u: 0.1, v: 0.2 }, { u: -0.3, v: 0.4 }]);
+  });
   it('tapping the pending item again cancels', () => {
     const { tool, a } = setup();
     tool.setMode(true);
@@ -55,6 +63,8 @@ describe('connect tool', () => {
     tool.begin(a.id);
     expect(tool.tap(c.id)).toBe(true);
     expect(store.get().links).toHaveLength(1);
+    expect(store.get().links[0].fromAt).toBeUndefined();
+    expect(store.get().links[0].toAt).toBeUndefined();
   });
   it('duplicate connections are announced, not added', () => {
     const { tool, store, deps, a, c } = setup();

@@ -30,6 +30,7 @@ import { confirmDialog } from './ui/confirm';
 import { showMemo } from './ui/memo';
 import { bindKeys } from './ui/keys';
 import { createDemoBoard } from './demo';
+import { toAnchor } from './model/geometry';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -87,14 +88,25 @@ async function boot() {
     getImageUrl: id => imageUrl(id, db.getBlob),
     onSelect: id => select({ kind: 'item', id }),
     onItemTap: id => connect.tap(id),
-    onPinPointerDown: (id, e) => connect.pinDrag(id, e),
+    mode: () => (connect.mode() ? 'string' : 'move'),
+    onStringPointerDown: (id, e) => {
+      const it = store.get().items.find(i => i.id === id);
+      const w = viewport.toWorld(e.clientX, e.clientY);
+      const onPin = !!(e.target as Element).closest('.pin');
+      connect.stringDrag(id, e, it && !onPin ? toAnchor(it, w.x, w.y) : undefined);
+    },
   });
   const connect = createConnect({
     store, viewport, strings, items, sfx,
     color: () => yarn,
     tension: () => prefs.defaultTension,
     announce,
-    onModeChange: on => { if (on) toast('String mode.', 'Tap one item, then another, to string them together.'); refreshDesk(); },
+    onModeChange: on => {
+      $('world').dataset.mode = on ? 'string' : 'move';
+      items.refreshHandles();
+      if (on) toast('String mode.', 'Drag from one item to another — the string sticks where you let go.');
+      refreshDesk();
+    },
     select: id => select({ kind: 'item', id }),
   });
   const drawer = createDrawer($('drawer'), {
@@ -122,7 +134,7 @@ async function boot() {
   });
   const desk = createDesk($('desk'), {
     addItem: t => void addNew(t),
-    toggleConnect: () => connect.setMode(!connect.mode()),
+    setMode,
     fit: () => viewport.fit(),
     zoom: f => viewport.zoomBy(f),
     undo: () => store.undo(),
@@ -131,8 +143,11 @@ async function boot() {
     openCaseFile: () => select({ kind: 'board' }),
     openSettings: () => settings.open(),
   });
+  function setMode(m: 'move' | 'string') {
+    if (connect.mode() !== (m === 'string')) connect.setMode(m === 'string');
+  }
   function refreshDesk() {
-    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), connecting: connect.mode(), yarn, muted: !prefs.sfx });
+    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), mode: connect.mode() ? 'string' : 'move', yarn, muted: !prefs.sfx });
   }
 
   function updateLight() {
@@ -317,13 +332,14 @@ async function boot() {
     location.reload();
   }
 
-  bindKeys({ store, viewport, connect, selection: () => sel, select, deleteSelected });
+  bindKeys({ store, viewport, connect, setMode, selection: () => sel, select, deleteSelected });
 
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });
 
   // First paint
   setPrefs({ lastBoardId: board.id, ...(prefs.lastExportAt ? {} : { lastExportAt: Date.now() }) });
+  $('world').dataset.mode = 'move';
   strings.sync(board, true);
   items.sync(board);
   tabs.render();

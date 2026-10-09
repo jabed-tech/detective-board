@@ -9,6 +9,7 @@ export interface KeyDeps {
   store: Store;
   viewport: Pick<Viewport, 'zoomBy' | 'fit'>;
   connect: ConnectTool;
+  setMode(m: 'move' | 'string'): void;
   selection(): Selection;
   select(s: Selection): void;
   deleteSelected(): void;
@@ -34,6 +35,8 @@ export function bindKeys(d: KeyDeps): void {
       case 'Delete': case 'Backspace':
         if (sel.kind === 'item' || sel.kind === 'link') { e.preventDefault(); d.deleteSelected(); }
         break;
+      case 'm': case 'M': d.setMode('move'); break;
+      case 's': case 'S': d.setMode('string'); break;
       case 'c': case 'C':
         if (sel.kind === 'item') d.connect.begin(sel.id);
         break;

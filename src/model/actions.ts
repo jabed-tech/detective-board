@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type FastenerId, type Item, type ItemData, type ItemType, type Link } from './types';
+import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type Anchor, type FastenerId, type Item, type ItemData, type ItemType, type Link } from './types';
 import { clamp } from './geometry';
 
 export function newId(): string {
@@ -62,11 +62,13 @@ export function bringToFront(b: Board, id: string): Board {
   return updateItem(b, id, { z: top + 1 });
 }
 
-export function connect(b: Board, from: string, to: string, opts: { color: string; tension: number }): Board {
+export function connect(b: Board, from: string, to: string, opts: { color: string; tension: number; fromAt?: Anchor; toAt?: Anchor }): Board {
   if (from === to) return b;
   if (!b.items.some(i => i.id === from) || !b.items.some(i => i.id === to)) return b;
   if (b.links.some(l => (l.from === from && l.to === to) || (l.from === to && l.to === from))) return b;
   const link: Link = { id: newId(), from, to, color: opts.color, tension: clamp(opts.tension, 0, 1) };
+  if (opts.fromAt) link.fromAt = opts.fromAt;
+  if (opts.toAt) link.toAt = opts.toAt;
   return { ...b, links: [...b.links, link] };
 }
 

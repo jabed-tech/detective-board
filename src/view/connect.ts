@@ -1,5 +1,6 @@
 import { connect as connectItems } from '../model/actions';
-import { pinPoint } from '../model/geometry';
+import { anchorPoint, toAnchor } from '../model/geometry';
+import type { Anchor } from '../model/types';
 import type { Store } from '../model/store';
 
 type Pt = { x: number; y: number };
@@ -17,12 +18,12 @@ export interface ConnectDeps {
   select(itemId: string): void;
 }
 export interface ConnectTool {
-  pinDrag(fromId: string, e: PointerEvent): void;
+  stringDrag(fromId: string, e: PointerEvent, fromAt?: Anchor): void;
   mode(): boolean;
   setMode(on: boolean): void;
-  tap(itemId: string): boolean;
-  begin(fromId: string): void;
-  complete(toId: string): boolean;
+  tap(itemId: string, at?: Anchor): boolean;
+  begin(fromId: string, at?: Anchor): void;
+  complete(toId: string, at?: Anchor): boolean;
   cancel(): void;
   pending(): string | null;
 }
@@ -30,11 +31,12 @@ export interface ConnectTool {
 export function createConnect(d: ConnectDeps): ConnectTool {
   let on = false;
   let from: string | null = null;
-  const setFrom = (id: string | null) => { from = id; d.items.setConnectFrom(id); };
+  let fromAt: Anchor | undefined;
+  const setFrom = (id: string | null, at?: Anchor) => { from = id; fromAt = id ? at : undefined; d.items.setConnectFrom(id); };
 
-  function link(a: string, b: string): boolean {
+  function link(a: string, b: string, aAt?: Anchor, bAt?: Anchor): boolean {
     const board = d.store.get();
-    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension() });
+    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension(), fromAt: aAt, toAt: bAt });
     if (next === board) {
       if (a !== b) d.announce('Those two are already connected.');
       return false;
@@ -49,22 +51,22 @@ export function createConnect(d: ConnectDeps): ConnectTool {
     pending: () => from,
     mode: () => on,
     setMode(v) { on = v; if (!v) setFrom(null); d.onModeChange(v); },
-    begin(id) { setFrom(id); d.announce('Connecting. Choose another item, then press Enter. Escape cancels.'); },
-    complete(toId) { const src = from; setFrom(null); return src ? link(src, toId) : false; },
+    begin(id, at) { setFrom(id, at); d.announce('Connecting. Choose another item, then press Enter. Escape cancels.'); },
+    complete(toId, at) { const src = from, srcAt = fromAt; setFrom(null); return src ? link(src, toId, srcAt, at) : false; },
     cancel() { setFrom(null); d.announce('Connection cancelled.'); },
-    tap(id) {
+    tap(id, at) {
       if (from) {
         if (from === id) { setFrom(null); return true; }
-        tool.complete(id);
+        tool.complete(id, at);
         return true;
       }
-      if (on) { setFrom(id); return true; }
+      if (on) { setFrom(id, at); return true; }
       return false;
     },
-    pinDrag(fromId, e) {
+    stringDrag(fromId, e, startAt) {
       const it = d.store.get().items.find(i => i.id === fromId);
       if (!it || d.viewport.pinching()) return;
-      const start = pinPoint(it);
+      const start = anchorPoint(it, startAt);
       (e.target as Element).setPointerCapture?.(e.pointerId);
       const sx = e.clientX;
       const sy = e.clientY;
@@ -81,10 +83,14 @@ export function createConnect(d: ConnectDeps): ConnectTool {
         window.removeEventListener('pointercancel', up);
         d.strings.preview(null);
         if (ev.type === 'pointercancel') return;
-        if (!moved) { if (!tool.tap(fromId)) d.select(fromId); return; }
-        const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-item-id], [data-pin-for]');
+        if (!moved) { if (!tool.tap(fromId, startAt)) d.select(fromId); return; }
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        const hit = under?.closest<HTMLElement>('[data-item-id], [data-pin-for]');
         const toId = hit?.dataset.itemId ?? hit?.dataset.pinFor;
-        if (toId && toId !== fromId) link(fromId, toId);
+        const target = toId ? d.store.get().items.find(i => i.id === toId) : undefined;
+        if (!target || target.id === fromId) return;
+        const p = d.viewport.toWorld(ev.clientX, ev.clientY);
+        link(fromId, target.id, startAt, under?.closest('.pin') ? undefined : toAnchor(target, p.x, p.y));
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);

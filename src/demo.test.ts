@@ -15,7 +15,7 @@ describe('demo case', () => {
   it('teaches the gestures', () => {
     const text = createDemoBoard().items.map(i => i.data.text ?? '').join(' ').toLowerCase();
     expect(text).toContain('drag');
-    expect(text).toContain('pin');
+    expect(text).toContain('string');
     expect(text).toContain('zoom');
   });
 });

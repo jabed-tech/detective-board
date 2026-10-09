@@ -103,6 +103,16 @@ describe('sanitising', () => {
     expect(v.items).toHaveLength(2);
     expect(v.links).toHaveLength(1);
   });
+  it('keeps finite anchors (clamped) and drops bad ones', () => {
+    const raw = JSON.parse(JSON.stringify(sample()));
+    raw.links[0].fromAt = { u: 2, v: -0.25 };
+    raw.links[0].toAt = { u: 'x', v: 0 };
+    const l = validateBoard(raw)!.links[0];
+    expect(l.fromAt).toEqual({ u: 0.5, v: -0.25 });
+    expect(l.toAt).toBeUndefined();
+    raw.links[0].fromAt = { u: null, v: 0 };
+    expect(validateBoard(raw)!.links[0].fromAt).toBeUndefined();
+  });
   it('keeps data.unknown only when boolean', () => {
     const raw = JSON.parse(JSON.stringify(sample()));
     raw.items[0].data.unknown = true;

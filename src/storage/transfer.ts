@@ -1,5 +1,6 @@
-import { BOARD_H, BOARD_W, FASTENERS, PIN_COLORS, YARN_COLORS, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
+import { BOARD_H, BOARD_W, FASTENERS, PIN_COLORS, YARN_COLORS, type Anchor, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
 import { newId } from '../model/actions';
+import { clamp } from '../model/geometry';
 
 export const FORMAT = 'detective-board';
 export type ImportError = 'not-json' | 'wrong-format' | 'newer-version' | 'bad-shape' | 'bad-asset';
@@ -53,6 +54,11 @@ function validateItem(raw: unknown): Item | null {
   };
 }
 
+function anchor(raw: unknown): Anchor | undefined {
+  if (!isRec(raw) || typeof raw.u !== 'number' || typeof raw.v !== 'number' || !Number.isFinite(raw.u) || !Number.isFinite(raw.v)) return undefined;
+  return { u: clamp(raw.u, -0.5, 0.5), v: clamp(raw.v, -0.5, 0.5) };
+}
+
 function validateLink(raw: unknown, ids: Set<string>): Link | null {
   if (!isRec(raw)) return null;
   const id = str(raw.id, 100);
@@ -63,6 +69,9 @@ function validateLink(raw: unknown, ids: Set<string>): Link | null {
   if (STYLES.has(raw.style as LineStyle)) link.style = raw.style as LineStyle;
   const label = str(raw.label, 80);
   if (label) link.label = label;
+  const fromAt = anchor(raw.fromAt), toAt = anchor(raw.toAt);
+  if (fromAt) link.fromAt = fromAt;
+  if (toAt) link.toAt = toAt;
   return link;
 }
 

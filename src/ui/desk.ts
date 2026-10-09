@@ -1,8 +1,8 @@
 import type { ItemType } from '../model/types';
 import { h } from './dom';
 
-export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; toggleConnect(): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
-export interface DeskState { canUndo: boolean; canRedo: boolean; connecting: boolean; yarn: string; muted: boolean }
+export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: 'move' | 'string'): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskState { canUndo: boolean; canRedo: boolean; mode: 'move' | 'string'; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
   const o = h('span', { className: `obj obj-${obj}` });
@@ -52,7 +52,9 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     if (!menu.hidden && !menu.contains(e.target as Node) && !add.contains(e.target as Node)) closeMenu();
   });
 
-  const spool = deskBtn('spool', 'String', 'String mode: tap two items to connect them', deps.toggleConnect);
+  const hand = deskBtn('hand', 'Move', 'Move mode: drag items around', () => deps.setMode('move'));
+  const spool = deskBtn('spool', 'String', 'String mode: drag from one item to another to connect them', () => deps.setMode('string'));
+  hand.setAttribute('aria-pressed', 'true');
   spool.setAttribute('aria-pressed', 'false');
   const zoomOut = deskBtn('minus', 'Zoom out', 'Zoom out', () => deps.zoom(0.8));
   const zoomIn = deskBtn('plus', 'Zoom in', 'Zoom in', () => deps.zoom(1.25));
@@ -65,7 +67,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
 
   el.append(
     h('div', { className: 'desk-add' }, add),
-    spool,
+    hand, spool,
     deskBtn('glass', 'Fit', 'Fit board to screen', deps.fit),
     zoomOut, zoomIn, undo, redo,
     deskBtn('folder', 'Case', 'Case file: name, export, import', deps.openCaseFile),
@@ -79,7 +81,8 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     update(s) {
       undo.disabled = !s.canUndo;
       redo.disabled = !s.canRedo;
-      spool.setAttribute('aria-pressed', String(s.connecting));
+      hand.setAttribute('aria-pressed', String(s.mode === 'move'));
+      spool.setAttribute('aria-pressed', String(s.mode === 'string'));
       spool.style.setProperty('--yarn', s.yarn);
       mute.setAttribute('aria-pressed', String(s.muted));
       mute.querySelector('.lbl')!.textContent = s.muted ? 'Muted' : 'Sound';

@@ -16,10 +16,14 @@ export interface Item {
   data: ItemData;
 }
 
+/** Spot on an item, in its own unrotated frame: fractions of w/h from the centre (each -0.5..0.5). */
+export interface Anchor { u: number; v: number }
+
 export interface Link {
   id: string; from: string; to: string;
   color: string; tension: number; // 0 taut … 1 droopy
   style?: LineStyle; label?: string;
+  fromAt?: Anchor; toAt?: Anchor; // absent = the item's main fastener
 }
 
 export interface Board {

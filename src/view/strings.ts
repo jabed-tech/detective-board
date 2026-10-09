@@ -1,5 +1,5 @@
 import { BOARD_H, BOARD_W, type Board, type Item, type Link } from '../model/types';
-import { clamp, pinPoint } from '../model/geometry';
+import { anchorPoint, clamp } from '../model/geometry';
 import { createRope, ropePath, staticPath, stepRope, type Rope } from './rope';
 
 type Pt = { x: number; y: number };
@@ -12,10 +12,12 @@ export interface StringsDeps {
 }
 export interface StringsView {
   sync(board: Board, settle?: boolean): void;
-  override(itemId: string, pos: (Pt & { rot?: number }) | null): void;
+  override(itemId: string, pos: Override | null): void;
   preview(from: Pt | null, to?: Pt, color?: string): void;
   setSelected(linkId: string | null): void;
 }
+
+type Override = Pt & { rot?: number; w?: number; h?: number };
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -31,7 +33,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     s.setAttribute('height', String(BOARD_H));
   }
   const entries = new Map<string, Entry>();
-  const overrides = new Map<string, Pt & { rot?: number }>();
+  const overrides = new Map<string, Override>();
   let items = new Map<string, Item>();
   let raf = 0;
   let selected: string | null = null;
@@ -44,7 +46,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     const a = items.get(l.from);
     const b = items.get(l.to);
     if (!a || !b) return null;
-    return [pinPoint({ ...a, ...overrides.get(a.id) }), pinPoint({ ...b, ...overrides.get(b.id) })];
+    return [anchorPoint({ ...a, ...overrides.get(a.id) }, l.fromAt), anchorPoint({ ...b, ...overrides.get(b.id) }, l.toAt)];
   }
   function style(e: Entry) {
     e.main.style.stroke = e.link.color;

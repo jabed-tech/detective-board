@@ -96,6 +96,12 @@ describe('links', () => {
     expect(connect(b1, a.id, c.id, { color: '#b3261e', tension: 0.5 })).toBe(b1);
     expect(connect(b1, c.id, a.id, { color: '#b3261e', tension: 0.5 })).toBe(b1);
   });
+  it('stores anchors on the link', () => {
+    const { b, a, c } = twoItems();
+    const l = connect(b, a.id, c.id, { color: '#b3261e', tension: 0.5, fromAt: { u: 0.1, v: 0.2 }, toAt: { u: -0.3, v: 0.4 } }).links[0];
+    expect(l.fromAt).toEqual({ u: 0.1, v: 0.2 });
+    expect(l.toAt).toEqual({ u: -0.3, v: 0.4 });
+  });
   it('rejects self-links and missing items', () => {
     const { b, a } = twoItems();
     expect(connect(b, a.id, a.id, { color: '#b3261e', tension: 0.5 })).toBe(b);

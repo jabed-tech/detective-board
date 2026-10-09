@@ -1,5 +1,5 @@
-import { BOARD_H, BOARD_W, ITEM_SIZES, type Board, type Item } from '../model/types';
-import { clamp, pinPoint } from '../model/geometry';
+import { BOARD_H, BOARD_W, ITEM_SIZES, type Anchor, type Board, type Item } from '../model/types';
+import { anchorPoint, clamp, pinPoint } from '../model/geometry';
 import { bringToFront, updateItem } from '../model/actions';
 import type { Store } from '../model/store';
 import type { Viewport } from './viewport';
@@ -31,22 +31,25 @@ export function scaledGeom(it: Item, f: number): Pick<Item, 'x' | 'y' | 'w' | 'h
 export interface ItemsDeps {
   store: Store;
   viewport: Pick<Viewport, 'el' | 'get' | 'pinching' | 'toWorld'>;
-  strings: { override(itemId: string, pos: (Pt & { rot?: number }) | null): void };
+  strings: { override(itemId: string, pos: (Pt & { rot?: number; w?: number; h?: number }) | null): void };
   sfx: Pick<Sfx, 'thunk' | 'rustle'>;
   getImageUrl(id: string): Promise<string | undefined>;
   reducedMotion(): boolean;
   onSelect(id: string): void;
   onItemTap(id: string): boolean;
-  onPinPointerDown(id: string, e: PointerEvent): void;
+  mode(): 'move' | 'string';
+  onStringPointerDown(id: string, e: PointerEvent): void;
 }
-export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void }
+export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; refreshHandles(): void }
 
 interface Entry { el: HTMLElement; body: HTMLElement; pin: HTMLButtonElement; key: string; item: Item }
+interface AnchorPin { el: HTMLElement; itemId: string; at: Anchor }
 interface Drag { id: string; pointerId: number; sx: number; sy: number; ox: number; oy: number; x: number; y: number; moved: boolean }
 
 export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: ItemsDeps): ItemsView {
   const entries = new Map<string, Entry>();
   const fresh = new Set<string>();
+  const anchorPins = new Map<string, AnchorPin>(); // key `${linkId}:from|to`
   let selectedId: string | null = null;
   let connectFrom: string | null = null;
   let drag: Drag | null = null;
@@ -64,7 +67,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
 
   function refreshHandle() {
     const e = selectedId ? entries.get(selectedId) : undefined;
-    handle.hidden = resizeHandle.hidden = !e || !!drag?.moved;
+    handle.hidden = resizeHandle.hidden = !e || !!drag?.moved || deps.mode() === 'string';
     if (!e || handle.hidden) return;
     const it = e.item;
     const r = ((rotDrag?.id === it.id ? rotDrag.rot : it.rot) * Math.PI) / 180;
@@ -117,7 +120,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     resDrag.live = live;
     e.item = live;
     applyGeom(e);
-    deps.strings.override(live.id, { x: live.x, y: live.y, rot: live.rot });
+    deps.strings.override(live.id, { x: live.x, y: live.y, rot: live.rot, w: live.w, h: live.h });
     refreshHandle();
   });
   function endRes(ev: PointerEvent, cancelled: boolean) {
@@ -181,6 +184,12 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.el.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
     const p = pinPoint({ ...e.item, x, y, rot });
     e.pin.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    for (const a of anchorPins.values()) if (a.itemId === e.item.id) putAnchor(a, { ...e.item, x, y, rot });
+  }
+
+  function putAnchor(a: AnchorPin, it: Pick<Item, 'x' | 'y' | 'w' | 'h' | 'rot'>) {
+    const p = anchorPoint(it, a.at);
+    a.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
   }
 
   function applyGeom(e: Entry) {
@@ -205,10 +214,10 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     pin.className = 'pin';
     pin.tabIndex = -1;
     pin.dataset.pinFor = it.id;
-        el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
+    el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
     el.addEventListener('lostpointercapture', ev => endDrag(ev.pointerId, true));
     el.addEventListener('focus', () => { if (!pressing && el.matches(':focus-visible') && selectedId !== it.id) deps.onSelect(it.id); });
-    pin.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); deps.onPinPointerDown(it.id, ev); });
+    pin.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); deps.onStringPointerDown(it.id, ev); });
     layer.append(el);
     pinsLayer.append(pin);
     return { el, body, pin, key: '', item: it };
@@ -256,6 +265,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     if (ev.button !== 0 || drag || deps.viewport.pinching()) return;
     const e = entries.get(id);
     if (!e) return;
+    if (deps.mode() === 'string') { deps.onStringPointerDown(id, ev); return; }
     pressing = true;
     drag = { id, pointerId: ev.pointerId, sx: ev.clientX, sy: ev.clientY, ox: e.item.x, oy: e.item.y, x: e.item.x, y: e.item.y, moved: false };
     e.el.setPointerCapture(ev.pointerId);
@@ -314,6 +324,29 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
         if (!e) { e = create(it); entries.set(it.id, e); }
         update(e, it);
       }
+      const keys = new Set<string>();
+      for (const l of board.links) {
+        for (const [end, itemId, at] of [['from', l.from, l.fromAt], ['to', l.to, l.toAt]] as const) {
+          if (!at) continue;
+          const key = `${l.id}:${end}`;
+          keys.add(key);
+          let a = anchorPins.get(key);
+          if (!a) {
+            const el = document.createElement('span');
+            el.className = 'anchor-pin';
+            el.setAttribute('aria-hidden', 'true');
+            pinsLayer.append(el);
+            a = { el, itemId, at };
+            anchorPins.set(key, a);
+          }
+          a.itemId = itemId; a.at = at;
+          a.el.dataset.pinFor = itemId;
+          a.el.style.setProperty('--pin', l.color);
+          const e = entries.get(itemId);
+          if (e && drag?.id !== itemId && rotDrag?.id !== itemId && resDrag?.id !== itemId) putAnchor(a, e.item);
+        }
+      }
+      for (const [key, a] of anchorPins) if (!keys.has(key)) { a.el.remove(); anchorPins.delete(key); }
       for (const [id, e] of entries) if (!seen.has(id)) {
         if (drag && drag.id === id) { drag = null; pressing = false; deps.strings.override(id, null); }
         e.el.remove(); e.pin.remove(); entries.delete(id); }
@@ -325,6 +358,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
       refreshHandle();
     },
     markFresh(id) { fresh.add(id); },
+    refreshHandles: refreshHandle,
     setConnectFrom(id) {
       connectFrom = id;
       for (const [k, e] of entries) e.el.classList.toggle('connect-from', k === id);
