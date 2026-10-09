@@ -2,7 +2,7 @@
 .viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; background: radial-gradient(ellipse at 50% 30%, #2a1f17, #0d0a08 70%); }
 .world { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; transform-origin: 0 0; will-change: transform; }
 .surface {
-  position: absolute; inset: 0; border-radius: 4px;
+  position: absolute; inset: 0; z-index: 0; border-radius: 4px;
   /* wooden frame + drop shadow onto the wall */
   box-shadow: 0 0 0 26px #5a3c25, 0 0 0 30px #2a1a10, 0 40px 90px 20px rgba(0, 0, 0, .75);
 }

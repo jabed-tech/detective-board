@@ -1,4 +1,6 @@
 .strings-layer { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.string-hits { z-index: 1; }
+.strings-layer:not(.string-hits) { z-index: 3; }
 .str path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .str-shadow { stroke: rgba(0, 0, 0, .28); stroke-width: 4; transform: translate(3px, 8px); }
 .str-halo { stroke: rgba(12, 8, 4, .6); stroke-width: 6; }   /* keeps red visible on any surface */

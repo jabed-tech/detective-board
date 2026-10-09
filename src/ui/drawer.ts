@@ -10,24 +10,31 @@ export interface DrawerDeps {
   setYarn(c: string): void;
 }
 
+const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
+const YARN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Black', 'Purple', 'Orange'];
 const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky note', index: 'Index card' } as const;
 
 export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?: boolean): void } {
   let shownKey = '';
   const commit = (fn: (b: Board) => Board) => deps.store.commit(fn(deps.store.get()));
 
+  function mark(row: Element, c: string) {
+    row.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-checked', String((b as HTMLElement).style.getPropertyValue('--c').toLowerCase() === c.toLowerCase())));
+  }
+
   function swatches(colors: readonly string[], current: string, name: string, pick: (c: string) => void): HTMLDivElement {
     const row = h('div', { className: 'swatches' });
     row.setAttribute('role', 'radiogroup');
     row.setAttribute('aria-label', name);
-    for (const c of colors) {
-      const b = button('', () => { shownKey = ''; pick(c); }, 'swatch');
+    const names = colors === PIN_COLORS ? PIN_NAMES : YARN_NAMES;
+    colors.forEach((c, i) => {
+      const b = button('', () => { mark(row, c); pick(c); }, 'swatch');
       b.style.setProperty('--c', c);
       b.setAttribute('role', 'radio');
       b.setAttribute('aria-checked', String(c.toLowerCase() === current.toLowerCase()));
-      b.setAttribute('aria-label', c);
+      b.setAttribute('aria-label', names[i] ?? c);
       row.append(b);
-    }
+    });
     return row;
   }
 
@@ -62,7 +69,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const sw = swatches(YARN_COLORS, l.color, 'String colour', setColor);
     const custom = h('input', { type: 'color', value: l.color, className: 'swatch-custom', title: 'Custom colour' });
     custom.setAttribute('aria-label', 'Custom colour');
-    custom.addEventListener('change', () => { shownKey = ''; setColor(custom.value); });
+    custom.addEventListener('change', () => { mark(sw, custom.value); setColor(custom.value); });
     sw.append(custom);
     const droop = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(l.tension) });
     droop.addEventListener('change', () => commit(b => updateLink(b, l.id, { tension: Number(droop.value) })));

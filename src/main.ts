@@ -76,7 +76,7 @@ async function boot() {
   const storageError = () => toast('The evidence locker is full.', 'Your browser refused to save. Export this case to keep it safe.');
   const autosave = createAutosave(b => db.saveBoard(b), storageError);
 
-  const strings = createStrings($('strings') as unknown as SVGSVGElement, {
+  const strings = createStrings($('strings') as unknown as SVGSVGElement, $('string-hits') as unknown as SVGSVGElement, {
     reducedMotion,
     scale: () => viewport.get().scale,
     onSelect: id => select({ kind: 'link', id }),
@@ -143,11 +143,17 @@ async function boot() {
     mood.setLightTarget((p.x / r.width) * 100, (p.y / r.height) * 100);
   }
 
+  function renderDrawer(force = false) {
+    const had = $('drawer').contains(document.activeElement);
+    drawer.render(force);
+    if (had && $('drawer').hidden) $('viewport').focus();
+  }
+
   function select(s: Selection) {
     sel = s;
     items.select(s.kind === 'item' ? s.id : null);
     strings.setSelected(s.kind === 'link' ? s.id : null);
-    drawer.render(true);
+    renderDrawer(true);
     updateLight();
   }
 
@@ -156,7 +162,7 @@ async function boot() {
     items.sync(b);
     const s = sel;
     const gone = (s.kind === 'item' && !b.items.some(i => i.id === s.id)) || (s.kind === 'link' && !b.links.some(l => l.id === s.id));
-    if (gone) select({ kind: 'none' }); else drawer.render();
+    if (gone) select({ kind: 'none' }); else renderDrawer(reason === 'undo' || reason === 'redo');
     metas = metas.map(m => (m.id === b.id ? { ...m, name: b.name } : m));
     tabs.render();
     refreshDesk();

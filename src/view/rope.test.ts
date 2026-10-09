@@ -36,6 +36,11 @@ describe('rope', () => {
     expect(run(r, 0.6, 1500)).toBe(false);
     expect(stepRope(r, A.x, A.y, B.x + 50, B.y, 0.6)).toBe(true);
   });
+  it('wakes when tension changes', () => {
+    const r = createRope(A.x, A.y, B.x, B.y, 0.6);
+    expect(run(r, 0.6, 1500)).toBe(false);
+    expect(stepRope(r, A.x, A.y, B.x, B.y, 0.2)).toBe(true);
+  });
   it('settle=true starts already hanging', () => {
     const r = createRope(A.x, A.y, B.x, B.y, 1, true);
     expect(mid(r).y).toBeGreaterThan(A.y + 60);

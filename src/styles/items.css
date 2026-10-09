@@ -1,4 +1,6 @@
 .items-layer, .pins-layer { position: absolute; inset: 0; }
+.items-layer { z-index: 2; }
+.pins-layer { z-index: 4; }
 .pins-layer { pointer-events: none; }
 
 .item { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; outline: none; }

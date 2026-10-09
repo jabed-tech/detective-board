@@ -5,7 +5,7 @@ const ITERATIONS = 40;
 const STILL_EPS = 0.02;
 const STILL_FRAMES = 30;
 
-export interface Rope { n: number; x: Float64Array; y: Float64Array; px: Float64Array; py: Float64Array; still: number }
+export interface Rope { n: number; x: Float64Array; y: Float64Array; px: Float64Array; py: Float64Array; still: number; t: number }
 
 export function restLength(dist: number, tension: number): number {
   const t = Math.min(1, Math.max(0, tension));
@@ -14,7 +14,7 @@ export function restLength(dist: number, tension: number): number {
 
 export function createRope(ax: number, ay: number, bx: number, by: number, tension: number, settle = false): Rope {
   const n = SEGMENTS + 1;
-  const r: Rope = { n, x: new Float64Array(n), y: new Float64Array(n), px: new Float64Array(n), py: new Float64Array(n), still: 0 };
+  const r: Rope = { n, x: new Float64Array(n), y: new Float64Array(n), px: new Float64Array(n), py: new Float64Array(n), still: 0, t: tension };
   for (let i = 0; i < n; i++) {
     const f = i / (n - 1);
     r.x[i] = r.px[i] = ax + (bx - ax) * f;
@@ -27,6 +27,7 @@ export function createRope(ax: number, ay: number, bx: number, by: number, tensi
 export function stepRope(r: Rope, ax: number, ay: number, bx: number, by: number, tension: number, dt = 1 / 60): boolean {
   const { n, x, y, px, py } = r;
   if (x[0] !== ax || y[0] !== ay || x[n - 1] !== bx || y[n - 1] !== by) r.still = 0;
+  if (tension !== r.t) { r.still = 0; r.t = tension; }
   const seg = restLength(Math.hypot(bx - ax, by - ay), tension) / (n - 1);
   const g = GRAVITY * (0.02 + 0.98 * Math.min(1, Math.max(0, tension)));
   const ox = Float64Array.from(x);

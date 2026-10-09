@@ -20,14 +20,16 @@ export interface StringsView {
 const NS = 'http://www.w3.org/2000/svg';
 
 interface Entry {
-  link: Link; g: SVGGElement; paths: SVGPathElement[]; main: SVGPathElement; halo: SVGPathElement;
+  link: Link; g: SVGGElement; hg: SVGGElement; paths: SVGPathElement[]; main: SVGPathElement; halo: SVGPathElement;
   rope: Rope; tension: number; awake: boolean; d: string;
 }
 
-export function createStrings(svg: SVGSVGElement, deps: StringsDeps): StringsView {
-  svg.setAttribute('viewBox', `0 0 ${BOARD_W} ${BOARD_H}`);
-  svg.setAttribute('width', String(BOARD_W));
-  svg.setAttribute('height', String(BOARD_H));
+export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: StringsDeps): StringsView {
+  for (const s of [svg, hitSvg]) {
+    s.setAttribute('viewBox', `0 0 ${BOARD_W} ${BOARD_H}`);
+    s.setAttribute('width', String(BOARD_W));
+    s.setAttribute('height', String(BOARD_H));
+  }
   const entries = new Map<string, Entry>();
   const overrides = new Map<string, Pt>();
   let items = new Map<string, Item>();
@@ -86,7 +88,7 @@ export function createStrings(svg: SVGSVGElement, deps: StringsDeps): StringsVie
     tdrag = { id, pointerId: ev.pointerId, sy: ev.clientY, start: e.tension, t: e.tension, moved: false };
     (ev.target as Element).setPointerCapture(ev.pointerId);
   }
-  svg.addEventListener('pointermove', ev => {
+  hitSvg.addEventListener('pointermove', ev => {
     if (!tdrag || ev.pointerId !== tdrag.pointerId) return;
     const dy = (ev.clientY - tdrag.sy) / deps.scale();
     if (Math.abs(dy) > 4) tdrag.moved = true;
@@ -105,8 +107,8 @@ export function createStrings(svg: SVGSVGElement, deps: StringsDeps): StringsVie
     if (d.moved) deps.onTensionCommit(d.id, d.t);
     else deps.onSelect(d.id);
   };
-  svg.addEventListener('pointerup', up);
-  svg.addEventListener('pointercancel', up);
+  hitSvg.addEventListener('pointerup', up);
+  hitSvg.addEventListener('pointercancel', up);
 
   let initialised = false;
 
@@ -126,11 +128,15 @@ export function createStrings(svg: SVGSVGElement, deps: StringsDeps): StringsVie
           g.setAttribute('class', 'str');
           g.dataset.linkId = l.id;
           const shadow = path('str-shadow'), halo = path('str-halo'), main = path('str-main'), hit = path('str-hit');
-          g.append(shadow, halo, main, hit);
+          g.append(shadow, halo, main);
           svg.insertBefore(g, previewPath);
+          const hg = document.createElementNS(NS, 'g');
+          hg.dataset.linkId = l.id;
+          hg.append(hit);
+          hitSvg.append(hg);
           hit.addEventListener('pointerdown', ev => onHitDown(ev, l.id));
           e = {
-            link: l, g, paths: [shadow, halo, main, hit], main, halo,
+            link: l, g, hg, paths: [shadow, halo, main, hit], main, halo,
             rope: createRope(pts[0].x, pts[0].y, pts[1].x, pts[1].y, l.tension, startSettled),
             tension: l.tension, awake: true, d: '',
           };
@@ -141,7 +147,7 @@ export function createStrings(svg: SVGSVGElement, deps: StringsDeps): StringsVie
         style(e);
         e.awake = true;
       }
-      for (const [id, e] of entries) if (!seen.has(id)) { e.g.remove(); entries.delete(id); }
+      for (const [id, e] of entries) if (!seen.has(id)) { e.g.remove(); e.hg.remove(); entries.delete(id); }
       kick();
     },
     override(itemId, pos) {

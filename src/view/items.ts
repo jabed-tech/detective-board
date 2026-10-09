@@ -54,7 +54,8 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     pin.dataset.pinFor = it.id;
     pin.setAttribute('aria-label', 'Pin — drag to another item to connect');
     el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
-    el.addEventListener('focus', () => { if (!pressing && selectedId !== it.id) deps.onSelect(it.id); });
+    el.addEventListener('lostpointercapture', ev => endDrag(ev.pointerId, true));
+    el.addEventListener('focus', () => { if (!pressing && el.matches(':focus-visible') && selectedId !== it.id) deps.onSelect(it.id); });
     pin.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); deps.onPinPointerDown(it.id, ev); });
     layer.append(el);
     pinsLayer.append(pin);
@@ -63,7 +64,6 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
 
   function update(e: Entry, it: Item) {
     e.item = it;
-    e.el.className = `item item-${it.type}`;
     e.el.style.width = `${it.w}px`;
     e.el.style.height = `${it.h}px`;
     e.el.style.zIndex = String(it.z);
@@ -87,7 +87,12 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
       img.src = url;
       if (fresh.delete(it.id) && !deps.reducedMotion()) {
         e.body.classList.add('developing');
-        e.body.addEventListener('animationend', () => e.body.classList.remove('developing'), { once: true });
+        const done = (ev: AnimationEvent) => {
+          if (ev.animationName !== 'develop') return;
+          e.body.classList.remove('developing');
+          e.body.removeEventListener('animationend', done);
+        };
+        e.body.addEventListener('animationend', done);
       }
     });
   }
@@ -152,7 +157,9 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
         if (!e) { e = create(it); entries.set(it.id, e); }
         update(e, it);
       }
-      for (const [id, e] of entries) if (!seen.has(id)) { e.el.remove(); e.pin.remove(); entries.delete(id); }
+      for (const [id, e] of entries) if (!seen.has(id)) {
+        if (drag && drag.id === id) { drag = null; pressing = false; deps.strings.override(id, null); }
+        e.el.remove(); e.pin.remove(); entries.delete(id); }
     },
     select(id) {
       selectedId = id;
