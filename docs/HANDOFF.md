@@ -11,7 +11,7 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 - Final Opus review → fix wave (`f04d208`): 5 Important fixes, plus user changes: strings snap to main pin by default (Advanced setting "Pin strings where I drop them"), Move/String/**Erase** modes (E key), undo/redo buttons only on touch devices (Ctrl+Z/Ctrl+Y on desktop), copy/paste keyboard-only with a Settings toggle.
 
 ## In flight when we stopped
-- **Task 19** (`docs/plans/phase-1/19-mode-feedback.md`): hover/press highlight in Move & Erase, slide-off cancels erase, dashed "empty" string preview after the first item in String mode. A Sonnet agent was implementing it; check `git status` — if files under `src/` are modified and uncommitted, run `npm test && npx tsc --noEmit`, then commit; otherwise re-run the task from its brief.
+- **Task 19** committed (104 tests pass) but NOT browser-checked. Known nits from implementer: hover and string-target highlight share `.hot` (one can clear the other); in Move mode the hot glow overrides the lifted shadow during drag.
 
 ## Next steps
 1. Finish/verify Task 19 in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
