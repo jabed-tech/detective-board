@@ -23,6 +23,8 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
       vol.addEventListener('change', () => deps.setPrefs({ volume: Number(vol.value) }));
       const neat = h('input', { type: 'checkbox', checked: p.neatHand });
       neat.addEventListener('change', () => deps.setPrefs({ neatHand: neat.checked }));
+      const tilt = h('input', { type: 'checkbox', checked: p.tiltNew });
+      tilt.addEventListener('change', () => deps.setPrefs({ tiltNew: tilt.checked }));
       const droop = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(p.defaultTension) });
       droop.addEventListener('change', () => deps.setPrefs({ defaultTension: Number(droop.value) }));
       const usage = h('p', { className: 'hint' }, 'Storage size unavailable in this browser.');
@@ -36,6 +38,7 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
         h('label', { className: 'opt' }, sfx, 'Sound effects'),
         field('Volume', vol),
         h('label', { className: 'opt' }, neat, 'Neat handwriting (easier to read)'),
+        h('label', { className: 'opt' }, tilt, 'Tilt new items slightly (more natural look)'),
         field('New string droop', droop),
         h('p', { className: 'hint' }, 'Everything stays on this device. Nothing is uploaded, ever.'),
         usage,

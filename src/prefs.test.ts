@@ -20,6 +20,16 @@ describe('prefs', () => {
     expect(p.atmosphere).toBe('gentle');
     expect(p.volume).toBe(1);
   });
+  it('defaults and validates tiltNew / lastFastener', () => {
+    expect(DEFAULT_PREFS.tiltNew).toBe(true);
+    expect(DEFAULT_PREFS.lastFastener).toBe('pin');
+    const p = loadPrefs(fakeStorage(JSON.stringify({ tiltNew: 'yes', lastFastener: 'glue' })));
+    expect(p.tiltNew).toBe(true);
+    expect(p.lastFastener).toBe('pin');
+    const q = loadPrefs(fakeStorage(JSON.stringify({ tiltNew: false, lastFastener: 'clip' })));
+    expect(q.tiltNew).toBe(false);
+    expect(q.lastFastener).toBe('clip');
+  });
   it('round-trips', () => {
     const s = fakeStorage();
     savePrefs({ ...DEFAULT_PREFS, neatHand: true, lastBoardId: 'abc' }, s);

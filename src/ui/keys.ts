@@ -36,6 +36,14 @@ export function bindKeys(d: KeyDeps): void {
       case 'c': case 'C':
         if (sel.kind === 'item') d.connect.begin(sel.id);
         break;
+      case '[': case ']': {
+        if (sel.kind !== 'item') break;
+        const it = d.store.get().items.find(i => i.id === sel.id);
+        if (!it) break;
+        const r = it.rot + (k === '[' ? -1 : 1) * (e.shiftKey ? 15 : 5);
+        d.store.commit(updateItem(d.store.get(), it.id, { rot: ((r + 540) % 360) - 180 }));
+        break;
+      }
       case 'Enter':
         if (sel.kind === 'item' && d.connect.pending() && d.connect.pending() !== sel.id) { e.preventDefault(); d.connect.complete(sel.id); }
         break;

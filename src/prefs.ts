@@ -1,4 +1,4 @@
-import type { Atmosphere } from './model/types';
+import { FASTENERS, type Atmosphere, type FastenerId } from './model/types';
 
 export interface Prefs {
   atmosphere: Atmosphere;
@@ -9,11 +9,14 @@ export interface Prefs {
   lastBoardId?: string;
   lastExportAt: number;
   memoSnoozedAt: number;
+  tiltNew: boolean;
+  lastFastener: FastenerId;
 }
 
 export const DEFAULT_PREFS: Prefs = {
   atmosphere: 'gentle', sfx: true, volume: 0.4, neatHand: false,
   defaultTension: 0.5, lastExportAt: 0, memoSnoozedAt: 0,
+  tiltNew: true, lastFastener: 'pin',
 };
 
 const KEY = 'detective-board:prefs';
@@ -41,6 +44,8 @@ export function loadPrefs(store: KV | null = local()): Prefs {
     defaultTension: num(raw.defaultTension, 0, 1, DEFAULT_PREFS.defaultTension),
     lastExportAt: num(raw.lastExportAt, 0, Number.MAX_SAFE_INTEGER, 0),
     memoSnoozedAt: num(raw.memoSnoozedAt, 0, Number.MAX_SAFE_INTEGER, 0),
+    tiltNew: typeof raw.tiltNew === 'boolean' ? raw.tiltNew : DEFAULT_PREFS.tiltNew,
+    lastFastener: FASTENERS.find(f => f.id === raw.lastFastener)?.id ?? DEFAULT_PREFS.lastFastener,
   };
   if (typeof raw.lastBoardId === 'string') p.lastBoardId = raw.lastBoardId;
   return p;

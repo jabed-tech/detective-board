@@ -12,7 +12,7 @@ export interface StringsDeps {
 }
 export interface StringsView {
   sync(board: Board, settle?: boolean): void;
-  override(itemId: string, pos: Pt | null): void;
+  override(itemId: string, pos: (Pt & { rot?: number }) | null): void;
   preview(from: Pt | null, to?: Pt, color?: string): void;
   setSelected(linkId: string | null): void;
 }
@@ -31,7 +31,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     s.setAttribute('height', String(BOARD_H));
   }
   const entries = new Map<string, Entry>();
-  const overrides = new Map<string, Pt>();
+  const overrides = new Map<string, Pt & { rot?: number }>();
   let items = new Map<string, Item>();
   let raf = 0;
   let selected: string | null = null;

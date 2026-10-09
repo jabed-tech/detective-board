@@ -4,14 +4,15 @@ import { bringToFront, updateItem } from '../model/actions';
 import type { Store } from '../model/store';
 import type { Viewport } from './viewport';
 import type { Sfx } from '../audio/sfx';
+import { FASTENERS } from '../model/types';
 import { itemLabel, renderItemContent } from './renderers';
 
 type Pt = { x: number; y: number };
 
 export interface ItemsDeps {
   store: Store;
-  viewport: Pick<Viewport, 'el' | 'get' | 'pinching'>;
-  strings: { override(itemId: string, pos: Pt | null): void };
+  viewport: Pick<Viewport, 'el' | 'get' | 'pinching' | 'toWorld'>;
+  strings: { override(itemId: string, pos: (Pt & { rot?: number }) | null): void };
   sfx: Pick<Sfx, 'thunk' | 'rustle'>;
   getImageUrl(id: string): Promise<string | undefined>;
   reducedMotion(): boolean;
@@ -32,9 +33,70 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
   let drag: Drag | null = null;
   let pressing = false; // suppress focus→select while a pointer is down
 
+  const norm = (r: number) => ((((r + 180) % 360) + 360) % 360) - 180;
+  let rotDrag: { id: string; pointerId: number; a0: number; r0: number; rot: number } | null = null;
+  const handle = document.createElement('button');
+  handle.type = 'button';
+  handle.className = 'rotate-handle';
+  handle.textContent = '↻';
+  handle.hidden = true;
+  handle.setAttribute('aria-label', 'Rotate — drag around');
+  pinsLayer.append(handle);
+
+  function refreshHandle() {
+    const e = selectedId ? entries.get(selectedId) : undefined;
+    handle.hidden = !e || !!drag?.moved;
+    if (!e || handle.hidden) return;
+    const it = e.item;
+    const r = ((rotDrag?.id === it.id ? rotDrag.rot : it.rot) * Math.PI) / 180;
+    const lx = it.w / 2 + 20, ly = -it.h / 2 - 20; // top-right corner pushed out ~28px diagonally
+    const x = it.x + it.w / 2 + lx * Math.cos(r) - ly * Math.sin(r);
+    const y = it.y + it.h / 2 + lx * Math.sin(r) + ly * Math.cos(r);
+    handle.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  const angleOf = (ev: PointerEvent, it: Item) => {
+    const w = deps.viewport.toWorld(ev.clientX, ev.clientY);
+    return (Math.atan2(w.y - (it.y + it.h / 2), w.x - (it.x + it.w / 2)) * 180) / Math.PI;
+  };
+  handle.addEventListener('pointerdown', ev => {
+    const e = selectedId ? entries.get(selectedId) : undefined;
+    if (ev.button !== 0 || !e || rotDrag || drag || deps.viewport.pinching()) return;
+    ev.stopPropagation(); ev.preventDefault();
+    rotDrag = { id: e.item.id, pointerId: ev.pointerId, a0: angleOf(ev, e.item), r0: e.item.rot, rot: e.item.rot };
+    handle.setPointerCapture(ev.pointerId);
+    deps.sfx.rustle();
+  });
+  handle.addEventListener('pointermove', ev => {
+    if (!rotDrag || ev.pointerId !== rotDrag.pointerId) return;
+    const e = entries.get(rotDrag.id);
+    if (!e) return;
+    let r = rotDrag.r0 + angleOf(ev, e.item) - rotDrag.a0;
+    if (ev.shiftKey) r = Math.round(r / 15) * 15;
+    rotDrag.rot = norm(r);
+    place(e, e.item.x, e.item.y);
+    deps.strings.override(e.item.id, { x: e.item.x, y: e.item.y, rot: rotDrag.rot });
+    refreshHandle();
+  });
+  function endRot(ev: PointerEvent, cancelled: boolean) {
+    if (!rotDrag || ev.pointerId !== rotDrag.pointerId) return;
+    const d = rotDrag;
+    rotDrag = null;
+    deps.strings.override(d.id, null);
+    const e = entries.get(d.id);
+    if (!e) return;
+    if (cancelled) place(e, e.item.x, e.item.y);
+    else deps.store.commit(updateItem(deps.store.get(), d.id, { rot: d.rot }));
+    refreshHandle();
+  }
+  handle.addEventListener('pointerup', ev => endRot(ev, false));
+  handle.addEventListener('pointercancel', ev => endRot(ev, true));
+  handle.addEventListener('lostpointercapture', ev => endRot(ev, true)); // no-op after a normal end
+
   function place(e: Entry, x: number, y: number) {
-    e.el.style.transform = `translate(${x}px, ${y}px) rotate(${e.item.rot}deg)`;
-    const p = pinPoint({ ...e.item, x, y });
+    const rot = rotDrag?.id === e.item.id ? rotDrag.rot : e.item.rot;
+    e.el.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
+    const p = pinPoint({ ...e.item, x, y, rot });
     e.pin.style.transform = `translate(${p.x}px, ${p.y}px)`;
   }
 
@@ -52,8 +114,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     pin.className = 'pin';
     pin.tabIndex = -1;
     pin.dataset.pinFor = it.id;
-    pin.setAttribute('aria-label', 'Pin — drag to another item to connect');
-    el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
+        el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
     el.addEventListener('lostpointercapture', ev => endDrag(ev.pointerId, true));
     el.addEventListener('focus', () => { if (!pressing && el.matches(':focus-visible') && selectedId !== it.id) deps.onSelect(it.id); });
     pin.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); deps.onPinPointerDown(it.id, ev); });
@@ -69,7 +130,9 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.el.style.zIndex = String(it.z);
     e.el.setAttribute('aria-label', itemLabel(it));
     e.pin.style.setProperty('--pin', it.attachColor);
-    if (!drag || drag.id !== it.id) place(e, it.x, it.y);
+    e.pin.dataset.kind = it.attach;
+    e.pin.setAttribute('aria-label', `${FASTENERS.find(f => f.id === it.attach)?.name ?? 'Push pin'} — drag to another item to connect`);
+    if ((!drag || drag.id !== it.id) && rotDrag?.id !== it.id) place(e, it.x, it.y);
     e.el.classList.toggle('selected', it.id === selectedId);
     e.el.classList.toggle('connect-from', it.id === connectFrom);
 
@@ -114,6 +177,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
       if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) < 5) return;
       drag.moved = true;
       deps.sfx.rustle();
+      refreshHandle();
       e.el.classList.add('lifted');
       e.el.style.zIndex = '100000';
     }
@@ -130,6 +194,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     drag = null;
     pressing = false;
     deps.strings.override(d.id, null);
+    refreshHandle();
     const e = entries.get(d.id);
     if (!e) return; // item vanished (e.g. undo mid-drag)
     e.el.classList.remove('lifted');
@@ -160,10 +225,12 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
       for (const [id, e] of entries) if (!seen.has(id)) {
         if (drag && drag.id === id) { drag = null; pressing = false; deps.strings.override(id, null); }
         e.el.remove(); e.pin.remove(); entries.delete(id); }
+      refreshHandle();
     },
     select(id) {
       selectedId = id;
       for (const [k, e] of entries) e.el.classList.toggle('selected', k === id);
+      refreshHandle();
     },
     markFresh(id) { fresh.add(id); },
     setConnectFrom(id) {

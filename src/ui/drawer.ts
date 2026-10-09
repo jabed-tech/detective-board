@@ -1,4 +1,4 @@
-import { PIN_COLORS, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
+import { FASTENERS, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
 import { bringToFront, removeItem, removeLink, updateItem, updateLink } from '../model/actions';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
@@ -7,7 +7,7 @@ export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; i
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
   exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void;
-  setYarn(c: string): void;
+  setYarn(c: string): void; setLastFastener(id: FastenerId): void;
 }
 
 const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
@@ -54,10 +54,29 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       cap.addEventListener('input', debounce(() => patchData({ caption: cap.value })));
       out.push(field('Caption', cap));
     }
-    out.push(group('Pin colour', swatches(PIN_COLORS, it.attachColor, 'Pin colour', c => commit(b => updateItem(b, it.id, { attachColor: c })))));
-    const tilt = h('input', { type: 'range', min: '-20', max: '20', step: '1', value: String(Math.round(it.rot)) });
+    const held = h('div', { className: 'fasteners' });
+    held.setAttribute('role', 'radiogroup');
+    held.setAttribute('aria-label', 'Held by');
+    for (const f of FASTENERS) {
+      const icon = h('span', { className: 'pin' });
+      icon.dataset.kind = f.id;
+      icon.style.setProperty('--pin', it.attachColor);
+      const b = h('button', { type: 'button', className: 'btn fastener' }, icon, f.name);
+      b.dataset.kind = f.id;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(it.attach === f.id));
+      b.addEventListener('click', () => {
+        held.querySelectorAll('.fastener').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+        deps.setLastFastener(f.id);
+        commit(bd => updateItem(bd, it.id, { attach: f.id }));
+      });
+      held.append(b);
+    }
+    out.push(group('Held by', held));
+    out.push(group('Colour', swatches(PIN_COLORS, it.attachColor, 'Pin colour', c => commit(b => updateItem(b, it.id, { attachColor: c })))));
+    const tilt = h('input', { type: 'range', min: '-180', max: '180', step: '1', value: String(Math.round(it.rot)) });
     tilt.addEventListener('change', () => commit(b => updateItem(b, it.id, { rot: Number(tilt.value) })));
-    out.push(field('Tilt', tilt));
+    out.push(field('Rotation', tilt));
     out.push(h('div', { className: 'row' },
       button('Bring to front', () => commit(b => bringToFront(b, it.id))),
       button('Take it down', () => commit(b => removeItem(b, it.id)), 'btn danger')));

@@ -106,6 +106,7 @@ async function boot() {
     clearBoard: () => void clearBoard(),
     deleteCase: () => void deleteCase(),
     setYarn: c => { yarn = c; refreshDesk(); },
+    setLastFastener: id => setPrefs({ lastFastener: id }),
   });
   const tabs = createTabs($('tabs'), {
     list: () => metas,
@@ -190,14 +191,14 @@ async function boot() {
         const imageId = newId();
         await db.putBlob(imageId, img.blob);
         const size = type === 'photo' ? { w: 260, h: Math.round((260 * img.h) / img.w) + 16 } : undefined;
-        it = makeItem(type, c.x, c.y, { imageId }, size);
+        it = makeItem(type, c.x, c.y, { imageId }, size, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew });
       } catch (e) {
         if (e instanceof ImageReadError) toast("Photo won't develop.", "That file type isn't supported (HEIC?). Try a JPG or PNG.");
         else storageError();
         return;
       }
     } else {
-      it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' });
+      it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew });
     }
     items.markFresh(it.id);
     store.commit(addItem(store.get(), it));

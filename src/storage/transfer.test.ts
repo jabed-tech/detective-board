@@ -85,6 +85,13 @@ describe('sanitising', () => {
     expect(v.items[0].attachColor).toBe('#c0392b');
     expect(v.items[0].x).toBeLessThanOrEqual(4000);
   });
+  it('keeps known fasteners and resets unknown ones to pin', () => {
+    const raw = JSON.parse(JSON.stringify(sample()));
+    raw.items[0].attach = 'tape';
+    expect(validateBoard(raw)!.items[0].attach).toBe('tape');
+    raw.items[0].attach = 'glue';
+    expect(validateBoard(raw)!.items[0].attach).toBe('pin');
+  });
   it('drops links to missing items, self-links, unknown item types and duplicate ids', () => {
     const b = sample();
     const raw = JSON.parse(JSON.stringify(b));

@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type Item, type ItemData, type ItemType, type Link } from './types';
+import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type FastenerId, type Item, type ItemData, type ItemType, type Link } from './types';
 import { clamp } from './geometry';
 
 export function newId(): string {
@@ -14,13 +14,14 @@ export function newBoard(name: string, caseNo: number): Board {
 export function makeItem(
   type: ItemType, cx: number, cy: number, data: ItemData = {},
   size?: { w: number; h: number }, rand: () => number = Math.random,
+  opts: { attach?: FastenerId; tilt?: boolean } = {},
 ): Item {
   const { w, h } = size ?? ITEM_SIZES[type];
   return {
     id: newId(), type,
     x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h,
-    rot: Math.round((rand() * 8 - 4) * 10) / 10,
-    z: 0, attach: 'pin',
+    rot: opts.tilt === false ? 0 : Math.round((rand() * 8 - 4) * 10) / 10,
+    z: 0, attach: opts.attach ?? 'pin',
     attachColor: PIN_COLORS[Math.floor(rand() * 4)],
     data,
   };

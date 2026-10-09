@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, PIN_COLORS, YARN_COLORS, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
+import { BOARD_H, BOARD_W, FASTENERS, PIN_COLORS, YARN_COLORS, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
 import { newId } from '../model/actions';
 
 export const FORMAT = 'detective-board';
@@ -46,7 +46,7 @@ function validateItem(raw: unknown): Item | null {
     y: num(raw.y, 0, BOARD_H - h, 0),
     rot: num(raw.rot, -180, 180, 0),
     z: Math.round(num(raw.z, 0, 1e6, 0)),
-    attach: 'pin',
+    attach: FASTENERS.find(f => f.id === raw.attach)?.id ?? 'pin',
     attachColor: color(raw.attachColor, PIN_COLORS[0]),
     data,
   };

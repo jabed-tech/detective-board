@@ -11,6 +11,19 @@ function twoItems() {
   return { b, a, c };
 }
 
+describe('makeItem opts', () => {
+  it('tilt:false gives rot 0, attach is kept', () => {
+    const i = makeItem('sticky', 500, 500, {}, undefined, () => 0.9, { tilt: false, attach: 'magnet' });
+    expect(i.rot).toBe(0);
+    expect(i.attach).toBe('magnet');
+  });
+  it('defaults to pin and tilt', () => {
+    const i = makeItem('sticky', 500, 500, {}, undefined, () => 0.9);
+    expect(i.attach).toBe('pin');
+    expect(i.rot).not.toBe(0);
+  });
+});
+
 describe('newId', () => {
   it('falls back when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', {});
