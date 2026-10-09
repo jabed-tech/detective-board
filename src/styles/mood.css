@@ -1,0 +1,14 @@
+@property --lx { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+@property --ly { syntax: '<percentage>'; inherits: true; initial-value: 35%; }
+
+.mood { position: absolute; inset: 0; pointer-events: none; z-index: 3; transition: --lx 1.2s ease, --ly 1.2s ease; }
+.mood > div { position: absolute; inset: 0; }
+.mood-warm { background: rgba(255, 170, 90, .10); mix-blend-mode: multiply; }
+.mood-lamp {
+  background: radial-gradient(ellipse 60% 65% at var(--lx) var(--ly),
+    rgba(255, 214, 150, .14) 0%, rgba(255, 214, 150, 0) 45%, rgba(8, 5, 3, .26) 78%, rgba(8, 5, 3, .36) 100%);
+}
+.mood-vignette { box-shadow: inset 0 0 140px rgba(0, 0, 0, .40); }
+.mood-flicker { background: #050302; opacity: 0; transition: opacity 60ms linear; }
+.mood[data-atmos="gentle"] .mood-flicker { transition-duration: 700ms; transition-timing-function: ease-in-out; }
+.mood[data-atmos="off"] .mood-flicker { display: none; }
