@@ -41,7 +41,7 @@ export interface ItemsDeps {
   onErase(id: string): void;
   onStringPointerDown(id: string, e: PointerEvent): void;
 }
-export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; refreshHandles(): void }
+export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; setHot(id: string | null): void; refreshHandles(): void }
 
 interface Entry { el: HTMLElement; body: HTMLElement; pin: HTMLButtonElement; key: string; item: Item }
 interface AnchorPin { el: HTMLElement; itemId: string; at: Anchor }
@@ -221,6 +221,8 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     pin.tabIndex = -1;
     pin.dataset.pinFor = it.id;
     el.addEventListener('pointerdown', ev => onItemDown(ev, it.id));
+    el.addEventListener('pointerenter', () => el.classList.add('hot'));
+    el.addEventListener('pointerleave', () => { if (!erasing && !drag) el.classList.remove('hot'); }); // a captured press stays lit until release
     el.addEventListener('lostpointercapture', ev => endDrag(ev.pointerId, true));
     el.addEventListener('focus', () => { if (!pressing && el.matches(':focus-visible') && selectedId !== it.id) deps.onSelect(it.id); });
     pin.addEventListener('pointerdown', ev => { ev.stopPropagation(); ev.preventDefault(); deps.onStringPointerDown(it.id, ev); });
@@ -271,6 +273,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     if (ev.button !== 0 || drag || deps.viewport.pinching()) return;
     const e = entries.get(id);
     if (!e) return;
+    e.el.classList.add('hot'); // touch has no hover
     if (deps.mode() === 'string') { deps.onStringPointerDown(id, ev); return; }
     if (deps.mode() === 'erase') {
       erasing = { id, pointerId: ev.pointerId, sx: ev.clientX, sy: ev.clientY };
@@ -326,10 +329,15 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     if (!erasing || ev.pointerId !== erasing.pointerId) return;
     const d = erasing;
     erasing = null;
-    if (!cancelled && !deps.viewport.pinching() && Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) < 5) deps.onErase(d.id);
+    const over = document.elementFromPoint?.(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-item-id]');
+    const slidOff = !!document.elementFromPoint && over?.dataset.itemId !== d.id; // sliding off cancels
+    if (!cancelled && !slidOff && !deps.viewport.pinching() && Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) < 5) deps.onErase(d.id);
   }
-  layer.addEventListener('pointerup', ev => { endDrag(ev.pointerId, false); endErase(ev, false); });
-  layer.addEventListener('pointercancel', ev => { endDrag(ev.pointerId, true); endErase(ev, true); });
+  const unlit = (ev: PointerEvent) => { // touch has no hover to fall back on
+    if (ev.pointerType === 'touch') for (const e of entries.values()) e.el.classList.remove('hot');
+  };
+  layer.addEventListener('pointerup', ev => { endDrag(ev.pointerId, false); endErase(ev, false); unlit(ev); });
+  layer.addEventListener('pointercancel', ev => { endDrag(ev.pointerId, true); endErase(ev, true); unlit(ev); });
   deps.viewport.el.addEventListener('viewport:pinch', () => { erasing = null; if (drag) endDrag(drag.pointerId, true); });
   deps.viewport.onChange(refreshHandle); // handle offset depends on zoom
 
@@ -377,6 +385,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     },
     markFresh(id) { fresh.add(id); },
     refreshHandles: refreshHandle,
+    setHot(id) { for (const [k, e] of entries) if (k === id || e.el.classList.contains('hot')) e.el.classList.toggle('hot', k === id); },
     setConnectFrom(id) {
       connectFrom = id;
       for (const [k, e] of entries) e.el.classList.toggle('connect-from', k === id);

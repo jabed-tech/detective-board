@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createConnect } from './connect';
+import { createConnect, previewEnd } from './connect';
 import { createStore } from '../model/store';
 import { addItem, makeItem, newBoard } from '../model/actions';
 
@@ -13,7 +13,7 @@ function setup(free = true) {
     store,
     viewport: { toWorld: (x: number, y: number) => ({ x, y }), pinching: () => false },
     strings: { preview: vi.fn() },
-    items: { setConnectFrom: vi.fn() },
+    items: { setConnectFrom: vi.fn(), setHot: vi.fn() },
     sfx: { pluck: vi.fn() },
     color: () => '#1f5fae',
     tension: () => 0.4,
@@ -89,5 +89,17 @@ describe('connect tool', () => {
     tool.tap(a.id);
     tool.setMode(false);
     expect(tool.pending()).toBeNull();
+  });
+  it('shows an empty string preview while a source is pending, clears it on cancel', () => {
+    const { tool, deps, a } = setup();
+    tool.setMode(true);
+    tool.tap(a.id);
+    expect(deps.strings.preview.mock.calls.at(-1)![0]).not.toBeNull();
+    tool.cancel();
+    expect(deps.strings.preview).toHaveBeenLastCalledWith(null);
+  });
+  it('preview snaps to the target point, else follows the pointer', () => {
+    expect(previewEnd({ x: 1, y: 2 }, { point: { x: 5, y: 6 } })).toEqual({ x: 5, y: 6 });
+    expect(previewEnd({ x: 1, y: 2 })).toEqual({ x: 1, y: 2 });
   });
 });

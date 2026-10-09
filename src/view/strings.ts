@@ -15,7 +15,7 @@ export interface StringsDeps {
 export interface StringsView {
   sync(board: Board, settle?: boolean): void;
   override(itemId: string, pos: Override | null): void;
-  preview(from: Pt | null, to?: Pt, color?: string): void;
+  preview(from: Pt | null, to?: Pt, color?: string, snapped?: boolean): void;
   setSelected(linkId: string | null): void;
 }
 
@@ -85,10 +85,12 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
 
   // Midpoint drag changes tension; a tap selects.
   let tdrag: { id: string; pointerId: number; sy: number; start: number; t: number; moved: boolean } | null = null;
+  const setHot = (id: string, on: boolean) => entries.get(id)?.g.classList.toggle('hot', on && deps.erasing());
   function onHitDown(ev: PointerEvent, id: string) {
     const e = entries.get(id);
     if (!e || ev.button !== 0) return;
     ev.stopPropagation();
+    setHot(id, true);
     tdrag = { id, pointerId: ev.pointerId, sy: ev.clientY, start: e.tension, t: e.tension, moved: false };
     (ev.target as Element).setPointerCapture(ev.pointerId);
   }
@@ -108,9 +110,12 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     if (!tdrag || ev.pointerId !== tdrag.pointerId) return;
     const d = tdrag;
     tdrag = null;
+    setHot(d.id, false);
     if (ev.type === 'pointercancel') return;
+    const over = document.elementFromPoint?.(ev.clientX, ev.clientY)?.closest<SVGElement>('[data-link-id]');
+    const slidOff = !!document.elementFromPoint && over?.dataset.linkId !== d.id; // sliding off cancels an erase
     if (d.moved) deps.onTensionCommit(d.id, d.t);
-    else if (deps.erasing()) deps.onErase(d.id);
+    else if (deps.erasing()) { if (!slidOff) deps.onErase(d.id); }
     else deps.onSelect(d.id);
   };
   hitSvg.addEventListener('pointerup', up);
@@ -141,6 +146,8 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
           hg.append(hit);
           hitSvg.append(hg);
           hit.addEventListener('pointerdown', ev => onHitDown(ev, l.id));
+          hit.addEventListener('pointerenter', () => setHot(l.id, true));
+          hit.addEventListener('pointerleave', () => { if (tdrag?.id !== l.id) setHot(l.id, false); });
           e = {
             link: l, g, hg, paths: [shadow, halo, main, hit], main, halo,
             rope: createRope(pts[0].x, pts[0].y, pts[1].x, pts[1].y, l.tension, startSettled),
@@ -160,7 +167,8 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
       if (pos) overrides.set(itemId, pos); else overrides.delete(itemId);
       wake(itemId);
     },
-    preview(from, to, color = '#b3261e') {
+    preview(from, to, color = '#b3261e', snapped = false) {
+      previewPath.classList.toggle('snapped', snapped);
       if (!from || !to) { previewPath.removeAttribute('d'); return; }
       previewPath.style.stroke = color;
       previewPath.setAttribute('d', staticPath(from.x, from.y, to.x, to.y, 0.3));
