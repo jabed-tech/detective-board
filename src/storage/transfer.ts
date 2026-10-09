@@ -93,7 +93,7 @@ async function blobToDataUrl(b: Blob): Promise<string> {
   const bytes = new Uint8Array(await b.arrayBuffer());
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return `data:${b.type};base64,${btoa(s)}`;
+  return `data:${b.type || 'image/webp'};base64,${btoa(s)}`;
 }
 
 function dataUrlToBlob(url: string): Blob | null {
@@ -139,7 +139,7 @@ function remapIds(board: Board, assets: Map<string, Blob>): { board: Board; asse
 export function parseImport(text: string): ImportResult {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { ok: false, error: 'not-json' }; }
-  if (!isRec(raw) || raw.format !== FORMAT || typeof raw.version !== 'number') return { ok: false, error: 'wrong-format' };
+  if (!isRec(raw) || raw.format !== FORMAT || typeof raw.version !== 'number' || !Number.isInteger(raw.version) || raw.version < 1) return { ok: false, error: 'wrong-format' };
   if (raw.version > 1) return { ok: false, error: 'newer-version' };
   const board = validateBoard(raw.board);
   if (!board) return { ok: false, error: 'bad-shape' };

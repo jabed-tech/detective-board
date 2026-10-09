@@ -61,7 +61,16 @@ describe('sanitising', () => {
     const text = `{"format":"${FORMAT}","version":1,"board":${JSON.stringify(b)},"assets":{"__proto__":"data:image/png;base64,AA=="}}`;
     const res = parseImport(text);
     expect(res.ok).toBe(true);
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    if (!res.ok) return;
+    expect(Object.getPrototypeOf(res.assets)).toBe(Object.prototype);
+    expect(({} as { constructor: unknown }).constructor).toBe(Object);
+    expect(Object.keys(res.assets).length).toBe(1);
+  });
+  it('rejects non-integer or < 1 versions', () => {
+    for (const v of [0, 1.5, -1]) {
+      const res = parseImport(JSON.stringify({ format: FORMAT, version: v, board: sample(), assets: {} }));
+      expect(res).toEqual({ ok: false, error: 'wrong-format' });
+    }
   });
   it('replaces unsafe colours and clamps numbers', () => {
     const b = sample();

@@ -36,4 +36,29 @@ describe('autosave', () => {
     await expect(a.flush()).resolves.toBeUndefined();
     expect(onError).toHaveBeenCalledWith(err);
   });
+  it('flush waits for an in-flight save', async () => {
+    let done!: () => void;
+    const save = vi.fn().mockImplementation(() => new Promise<void>(r => { done = r; }));
+    const a = createAutosave(save, vi.fn(), 0);
+    a.schedule(newBoard('x', 1));
+    await new Promise(r => setTimeout(r, 5)); // timer-started save now in flight
+    expect(save).toHaveBeenCalledTimes(1);
+    let resolved = false;
+    void a.flush().then(() => { resolved = true; });
+    await new Promise(r => setTimeout(r, 5));
+    expect(resolved).toBe(false);
+    done();
+    await new Promise(r => setTimeout(r, 5));
+    expect(resolved).toBe(true);
+  });
+  it('retries a failed save on the next flush', async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error('fail')).mockResolvedValue(undefined);
+    const a = createAutosave(save, vi.fn(), 500);
+    const b = newBoard('x', 1);
+    a.schedule(b);
+    await a.flush();
+    await a.flush();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1][0].id).toBe(b.id);
+  });
 });

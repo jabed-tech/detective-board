@@ -16,7 +16,8 @@ export async function processImage(file: Blob): Promise<{ blob: Blob; w: number;
   try {
     bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    throw new ImageReadError('Could not decode image');
+    // some browsers reject the options bag; retry plain
+    try { bmp = await createImageBitmap(file); } catch { throw new ImageReadError('Could not decode image'); }
   }
   const { w, h } = fitWithin(bmp.width, bmp.height);
   const canvas = document.createElement('canvas');
