@@ -1,7 +1,7 @@
 import { createStore, get, set, del, values, clear } from 'idb-keyval';
 import type { Board } from '../model/types';
 
-export interface BoardMeta { id: string; name: string; caseNo: number; updatedAt: number }
+export interface BoardMeta { id: string; name: string; caseNo: number; updatedAt: number; closed?: boolean }
 
 export interface Db {
   persistent: boolean;
@@ -15,7 +15,7 @@ export interface Db {
   clearAll(): Promise<void>;
 }
 
-const meta = (b: Board): BoardMeta => ({ id: b.id, name: b.name, caseNo: b.caseNo, updatedAt: b.updatedAt });
+const meta = (b: Board): BoardMeta => ({ id: b.id, name: b.name, caseNo: b.caseNo, updatedAt: b.updatedAt, ...(b.closed ? { closed: true } : {}) });
 const byCase = (a: BoardMeta, b: BoardMeta) => a.caseNo - b.caseNo;
 const imageIds = (b: Board) => b.items.flatMap(i => (i.data.imageId ? [i.data.imageId] : []));
 

@@ -1,7 +1,8 @@
-import type { ItemType, Mode } from '../model/types';
+import { OBJECTS, STAMPS, type ItemType, type Mode, type ObjectId, type StampId } from '../model/types';
 import { h } from './dom';
 
-export interface DeskDeps { addItem(t: ItemType | 'unknown'): void; setMode(m: Mode): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export type AddChoice = ItemType | 'unknown' | `stamp:${StampId}` | `object:${ObjectId}`;
+export interface DeskDeps { addItem(c: AddChoice): void; setMode(m: Mode): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
 export interface DeskState { canUndo: boolean; canRedo: boolean; mode: Mode; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
@@ -23,17 +24,32 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     const r = add.getBoundingClientRect();
     menu.style.bottom = `${innerHeight - r.top + 8}px`;
     menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8))}px`;
-    (menu.firstElementChild as HTMLElement).focus();
+    menu.querySelector<HTMLElement>('[role=menuitem]')!.focus();
   });
   add.setAttribute('aria-haspopup', 'menu');
   add.setAttribute('aria-expanded', 'false');
   const closeMenu = () => { menu.hidden = true; add.setAttribute('aria-expanded', 'false'); };
-  const choices: [ItemType | 'unknown', string][] = [['photo', 'Photograph'], ['polaroid', 'Polaroid'], ['unknown', 'Unknown person'], ['sticky', 'Sticky note'], ['index', 'Index card']];
-  for (const [t, name] of choices) {
-    const m = h('button', { type: 'button', textContent: name });
-    m.setAttribute('role', 'menuitem');
-    m.addEventListener('click', () => { closeMenu(); add.focus(); deps.addItem(t); });
-    menu.append(m);
+  const groups: [string, [AddChoice, string][]][] = [
+    ['Evidence', [['photo', 'Photograph'], ['polaroid', 'Polaroid'], ['unknown', 'Unknown person'], ['sticky', 'Sticky note'], ['index', 'Index card']]],
+    ['Paperwork', [['mugshot', 'Mugshot'], ['newspaper', 'Newspaper clipping'], ['receipt', 'Receipt'], ['casefile', 'Case file']]],
+    ['Draw', [['sketch', 'Sketch…']]],
+    ['Stamps', STAMPS.map(st => [`stamp:${st.id}` as AddChoice, st.label === '?' ? 'Question mark' : st.label])],
+    ['Objects', OBJECTS.map(o => [`object:${o.id}` as AddChoice, o.name])],
+  ];
+  for (const [title, list] of groups) {
+    const g = h('div', { className: 'menu-group' });
+    g.setAttribute('role', 'group');
+    g.setAttribute('aria-label', title);
+    const head = h('div', { className: 'menu-head', textContent: title });
+    head.setAttribute('aria-hidden', 'true');
+    g.append(head);
+    for (const [c, name] of list) {
+      const m = h('button', { type: 'button', textContent: name });
+      m.setAttribute('role', 'menuitem');
+      m.addEventListener('click', () => { closeMenu(); add.focus(); deps.addItem(c); });
+      g.append(m);
+    }
+    menu.append(g);
   }
   menu.addEventListener('keydown', e => {
     const items = [...menu.querySelectorAll<HTMLElement>('[role=menuitem]')];
@@ -41,6 +57,13 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     if (e.key === 'Escape') { closeMenu(); add.focus(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
     if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const k = e.key.toLowerCase();
+      for (let n = 1; n <= items.length; n++) {
+        const it = items[(i + n) % items.length];
+        if ((it.textContent ?? '').toLowerCase().startsWith(k)) { e.preventDefault(); it.focus(); break; }
+      }
+    }
   });
   const leave = (e: FocusEvent) => {
     const to = e.relatedTarget as Node | null;

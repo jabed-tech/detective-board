@@ -38,4 +38,13 @@ describe('openDb without IndexedDB', () => {
     expect(await db.getBlob('a')).toBeUndefined();
     await expect(db.deleteBlob('missing')).resolves.toBeUndefined();
   });
+  it('lists closed boards with closed: true and open ones without the key', async () => {
+    const db = await openDb();
+    await db.clearAll();
+    await db.saveBoard({ ...newBoard('Shut', 1), closed: true });
+    await db.saveBoard(newBoard('Open', 2));
+    const [a, b] = await db.listBoards();
+    expect(a.closed).toBe(true);
+    expect('closed' in b).toBe(false);
+  });
 });

@@ -6,7 +6,7 @@ import './styles/strings.css';
 import './styles/mood.css';
 import './styles/chrome.css';
 
-import { SURFACES, YARN_COLORS, type Board, type Item, type ItemType, type Mode } from './model/types';
+import { OBJECTS, STAMPS, SURFACES, YARN_COLORS, type Board, type Item, type Mode, type ObjectId, type StampId } from './model/types';
 import { createStore } from './model/store';
 import { addItem, makeItem, newBoard, newId, removeItem, removeLink, updateItem, updateLink } from './model/actions';
 import { clearPrefs, loadPrefs, savePrefs, type Prefs } from './prefs';
@@ -26,7 +26,9 @@ import { createSfx } from './audio/sfx';
 import { createAmbience } from './audio/ambience';
 import { createMusic } from './audio/music';
 import { pickMood } from './ui/newcase';
-import { createDesk } from './ui/desk';
+import { createDesk, type AddChoice } from './ui/desk';
+import { openSketchPad } from './ui/sketchpad';
+import { genCaseFile, genMugshot, genNewspaper, genReceipt, newSeed } from './model/generators';
 import { createDrawer, type Selection } from './ui/drawer';
 import { createTabs } from './ui/tabs';
 import { createSettings } from './ui/settings';
@@ -141,6 +143,7 @@ async function boot() {
     importBoard: f => void doImport(f),
     clearBoard: () => void clearBoard(),
     deleteCase: () => void deleteCase(),
+    closeCase: () => closeCase(),
     pickPhoto: id => void pickPhoto(id),
     fitHeight: (id, data) => items.fitHeight(id, data),
     setYarn: c => { yarn = c; refreshDesk(); },
@@ -225,7 +228,11 @@ async function boot() {
     const s = sel;
     const gone = (s.kind === 'item' && !b.items.some(i => i.id === s.id)) || (s.kind === 'link' && !b.links.some(l => l.id === s.id));
     if (gone) select({ kind: 'none' }); else renderDrawer(reason === 'undo' || reason === 'redo');
-    metas = metas.map(m => (m.id === b.id ? { ...m, name: b.name } : m));
+    metas = metas.map(m => {
+      if (m.id !== b.id) return m;
+      const { closed: _c, ...rest } = m;
+      return { ...rest, name: b.name, ...(b.closed ? { closed: true } : {}) };
+    });
     tabs.render();
     refreshDesk();
     if (reason !== 'load') autosave.schedule(b);
@@ -270,21 +277,60 @@ async function boot() {
     store.commit(updateItem(store.get(), itemId, { data: { ...data, imageId: up.imageId } }));
   }
 
-  async function addNew(type: ItemType | 'unknown') {
-    const c = viewport.centerWorld();
+  async function addNew(c: AddChoice) {
+    const ctr = viewport.centerWorld();
     const opts = { attach: pickFastener(store.get().surface, prefs.lastFastener), tilt: prefs.tiltNew };
+    const now = Date.now();
+    const seed = newSeed();
     let it: Item;
-    if (type === 'unknown') {
-      it = makeItem('polaroid', c.x, c.y, { unknown: true, caption: 'Unknown suspect' }, undefined, Math.random, opts);
-    } else if (type === 'photo' || type === 'polaroid') {
+    if (c === 'unknown') {
+      it = makeItem('polaroid', ctr.x, ctr.y, { unknown: true, caption: 'Unknown suspect' }, undefined, Math.random, opts);
+    } else if (c === 'photo' || c === 'polaroid') {
       const up = await uploadPhoto();
       if (!up) return;
-      const size = type === 'photo' ? { w: 260, h: Math.round((260 * up.h) / up.w) + 16 } : undefined;
-      it = makeItem(type, c.x, c.y, { imageId: up.imageId }, size, Math.random, opts);
+      const size = c === 'photo' ? { w: 260, h: Math.round((260 * up.h) / up.w) + 16 } : undefined;
+      it = makeItem(c, ctr.x, ctr.y, { imageId: up.imageId }, size, Math.random, opts);
+    } else if (c === 'mugshot') {
+      it = makeItem(c, ctr.x, ctr.y, { seed, ...genMugshot(seed) }, undefined, Math.random, opts);
+    } else if (c === 'newspaper') {
+      it = makeItem(c, ctr.x, ctr.y, { seed, ...genNewspaper(seed, now) }, undefined, Math.random, opts);
+    } else if (c === 'receipt') {
+      it = makeItem(c, ctr.x, ctr.y, { seed, ...genReceipt(seed, now) }, undefined, Math.random, opts);
+    } else if (c === 'casefile') {
+      it = makeItem(c, ctr.x, ctr.y, { seed, ...genCaseFile(seed, now) }, undefined, Math.random, opts);
+    } else if (c === 'sketch') {
+      const s = await openSketchPad($('sketchpad') as HTMLDialogElement);
+      if (!s) return;
+      if (!s.length) { toast('Blank page.', 'Nothing was drawn, so nothing was pinned.'); return; }
+      it = makeItem('sketch', ctr.x, ctr.y, { strokes: s }, undefined, Math.random, opts);
+    } else if (c.startsWith('stamp:')) {
+      const id = c.slice(6) as StampId;
+      const st = STAMPS.find(x => x.id === id);
+      if (!st) return;
+      it = makeItem('stamp', ctr.x, ctr.y, { stamp: id }, { w: st.w, h: st.h }, Math.random, opts);
+      if (prefs.tiltNew) it = { ...it, rot: Math.round((Math.random() * 16 - 8) * 10) / 10 };
+    } else if (c.startsWith('object:')) {
+      const id = c.slice(7) as ObjectId;
+      const ob = OBJECTS.find(x => x.id === id);
+      if (!ob) return;
+      it = makeItem('object', ctr.x, ctr.y, { object: id }, { w: ob.w, h: ob.h }, Math.random, opts);
     } else {
-      it = makeItem(type, c.x, c.y, { text: type === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, opts);
+      it = makeItem(c as 'sticky' | 'index', ctr.x, ctr.y, { text: c === 'sticky' ? 'New lead…' : 'Notes:' }, undefined, Math.random, opts);
     }
     place(it);
+  }
+
+  function closeCase() {
+    const b = store.get();
+    if (b.closed) return;
+    const c = viewport.centerWorld();
+    const st = STAMPS.find(x => x.id === 'case-closed')!;
+    const base = makeItem('stamp', c.x, c.y, { stamp: 'case-closed' }, { w: st.w, h: st.h }, Math.random, { attach: 'pin', tilt: false });
+    const stamped = addItem(b, { ...base, rot: -8 });
+    items.markFresh(stamped.items[stamped.items.length - 1].id);
+    store.commit({ ...stamped, closed: true });
+    sfx.thunk();
+    toast('Case closed.', "It's filed in the archive tab. Reopen it any time from the case file.");
   }
 
   function place(it: Item) {

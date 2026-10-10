@@ -106,3 +106,25 @@ dialog.newcase { width: min(92vw, 680px); max-height: 90dvh; overflow: auto; }
 .thick-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
 .thick-sample { display: block; width: 36px; height: calc(var(--sw, 1) * 3px); border-radius: 2px; background: currentColor; }
 .sound-music { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0; }
+
+/* CASE CLOSED archive tabs */
+.tab-archive { background: transparent; color: #e2c88f; border: 1px solid #8a7246; border-bottom: 0; justify-content: center; font-size: 13px; }
+.tab-closed { position: relative; background: #8d7a58; color: #3a2d1b; }
+.tab-closed[aria-current="true"] { background: #c9b389; }
+.tab-stamp { position: absolute; top: 2px; right: 4px; font: 700 9px var(--font-ui); letter-spacing: .08em; color: #a3261c; border: 1px solid #a3261c; padding: 0 3px; border-radius: 2px; transform: rotate(6deg); }
+
+/* Grouped Add menu */
+.desk-menu { max-height: min(70vh, 560px); overflow-y: auto; }
+.menu-group { display: flex; flex-direction: column; }
+.menu-head { font: 700 11px var(--font-ui); text-transform: uppercase; font-variant: small-caps; letter-spacing: .12em; color: #5a4a33; padding: 8px 12px 2px; }
+@media (min-width: 640px) { .desk-menu { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; width: 440px; align-items: start; } .desk-menu[hidden] { display: none; } }
+
+/* Receipt lines editor */
+.rc-edit { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.rc-edit-row { display: flex; gap: 6px; align-items: center; }
+.rc-edit-row .rc-ed-name { flex: 1 1 auto; min-width: 0; }
+.rc-edit-row .rc-ed-price { flex: 0 0 84px; width: 84px; }
+.rc-edit-row .rc-ed-x { flex: 0 0 44px; min-width: 44px; min-height: 44px; padding: 0; }
+.drawer input[type="number"] { box-sizing: border-box; font: 16px var(--font-ui); padding: 8px; border: 1px solid #b9a77c; background: #fffdf5; color: var(--ink); border-radius: 3px; min-height: 44px; }
+.rc-total-ro { font-weight: 700; margin: 4px 0 10px; }
+.pin[hidden] { display: none; }

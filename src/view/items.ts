@@ -255,6 +255,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.el.setAttribute('aria-label', itemLabel(it));
     e.pin.style.setProperty('--pin', it.attachColor);
     e.pin.dataset.kind = it.attach;
+    e.pin.hidden = it.type === 'stamp';
     e.pin.setAttribute('aria-label', `${FASTENERS.find(f => f.id === it.attach)?.name ?? 'Push pin'} — drag to another item to connect`);
     if ((!drag || drag.id !== it.id) && rotDrag?.id !== it.id && resDrag?.id !== it.id) place(e, it.x, it.y);
     e.el.classList.toggle('selected', it.id === selectedId);

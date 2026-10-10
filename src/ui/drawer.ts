@@ -1,14 +1,16 @@
-import { FASTENERS, ITEM_SIZES, MATERIALS, MOODS, SURFACES, THICKNESSES, type MoodId, type StringMaterial, type SurfaceId, type LinkArrow, TEXT_STEP, stepTextScale, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
+import { OBJECTS, STAMPS, type ItemData, type ObjectId, type ReceiptLine, type StampId, FASTENERS, ITEM_SIZES, MATERIALS, MOODS, SURFACES, THICKNESSES, type MoodId, type StringMaterial, type SurfaceId, type LinkArrow, TEXT_STEP, stepTextScale, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
 import { bringToFront, removeItem, removeLink, reverseLink, updateItem, updateLink } from '../model/actions';
 import { moodPatch } from '../model/surfaces';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
 import { scaledGeom, withFit } from '../view/items';
+import { formatMoney, genCaseFile, genMugshot, genNewspaper, genReceipt, newSeed, receiptTotal } from '../model/generators';
+import { openSketchPad } from './sketchpad';
 
 export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; id: string } | { kind: 'link'; id: string };
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
-  exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void;
+  exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void; closeCase(): void;
   pickPhoto(itemId: string): void; fitHeight(id: string, data: Item['data']): number | null; setYarn(c: string): void; setLastFastener(id: FastenerId): void; setLastThickness(v: number): void;
 }
 
@@ -58,6 +60,8 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const patchData = (patch: Partial<Item['data']>) => commit(b => {
       const cur = b.items.find(i => i.id === it.id);
       if (!cur) return b;
+      const same = (Object.entries(patch) as [keyof ItemData, unknown][]).every(([k, v]) => JSON.stringify(cur.data[k]) === JSON.stringify(v));
+      if (same) return b;
       const data = { ...cur.data, ...patch };
       return updateItem(b, it.id, 'text' in patch || 'caption' in patch ? withFit(cur, data, deps.fitHeight) : { data });
     });
@@ -87,6 +91,111 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       reset.style.minHeight = '44px';
       return group('Text size', h('div', { className: 'row' }, smaller, readout, larger, reset));
     };
+    type TextKey = 'name' | 'bookingNo' | 'masthead' | 'date' | 'headline' | 'store' | 'time' | 'subject' | 'officer' | 'status' | 'caption';
+    /** Single-line text field bound to one data key; debounced while typing, committed on change (no-op skipped). */
+    const textRow = (label: string, key: TextKey, max: number): HTMLElement => {
+      const inp = h('input', { type: 'text', value: it.data[key] ?? '', maxLength: max });
+      const go = () => patchData({ [key]: inp.value });
+      inp.addEventListener('input', debounce(go));
+      inp.addEventListener('change', go);
+      return field(label, inp);
+    };
+    const areaRow = (label: string, rows: number): HTMLElement => {
+      const ta = h('textarea', { value: it.data.text ?? '', rows, maxLength: 5000 });
+      const go = () => patchData({ text: ta.value });
+      ta.addEventListener('input', debounce(go));
+      ta.addEventListener('change', go);
+      return field(label, ta);
+    };
+    /** One commit: re-roll the generated fields (keeps any photo), so Ctrl+Z restores the old text. */
+    const reroll = (label: string, gen: (seed: number, now: number) => Partial<ItemData>) => button(label, () => {
+      const seed = newSeed();
+      commit(b => {
+        const cur = b.items.find(i => i.id === it.id);
+        if (!cur) return b;
+        return updateItem(b, it.id, withFit(cur, { ...cur.data, seed, ...gen(seed, Date.now()) }, deps.fitHeight));
+      });
+      api.render(true);
+    });
+    if (it.type === 'mugshot') {
+      out.push(textRow('Name', 'name', 80), textRow('Booking no.', 'bookingNo', 20),
+        h('div', { className: 'row' }, button(it.data.imageId ? 'Replace photo' : 'Add photo', () => deps.pickPhoto(it.id))),
+        h('div', { className: 'row' }, reroll('New random details', s => genMugshot(s))), textSizeRow());
+    }
+    if (it.type === 'newspaper') {
+      out.push(textRow('Masthead', 'masthead', 60), textRow('Date', 'date', 40), textRow('Headline', 'headline', 140), areaRow('Story', 5),
+        h('div', { className: 'row' }, reroll('New random story', genNewspaper)), textSizeRow());
+    }
+    if (it.type === 'receipt') {
+      out.push(textRow('Shop', 'store', 60), textRow('Time', 'time', 40));
+      const lines = it.data.lines ?? [];
+      const setLines = (fn: (l: ReceiptLine[]) => ReceiptLine[]) => commit(b => {
+        const cur = b.items.find(i => i.id === it.id);
+        if (!cur) return b;
+        const before = cur.data.lines ?? [];
+        const next = fn(before.map(l => ({ ...l })));
+        if (JSON.stringify(next) === JSON.stringify(before)) return b;
+        return updateItem(b, it.id, withFit(cur, { ...cur.data, lines: next }, deps.fitHeight));
+      });
+      const total = h('p', { className: 'rc-total-ro' }, `Total ${formatMoney(receiptTotal(lines))}`);
+      total.setAttribute('aria-live', 'polite');
+      const editor = h('div', { className: 'rc-edit' });
+      editor.setAttribute('role', 'group');
+      editor.setAttribute('aria-label', 'Receipt lines');
+      lines.forEach((l, i) => {
+        const name = h('input', { type: 'text', value: l.name, maxLength: 60, className: 'rc-ed-name' });
+        name.setAttribute('aria-label', `Item ${i + 1} name`);
+        const price = h('input', { type: 'number', min: '0', step: '0.01', value: (l.price / 100).toFixed(2), className: 'rc-ed-price' });
+        price.setAttribute('aria-label', `Item ${i + 1} price in pounds`);
+        const pence = () => { const v = Number(price.value); return price.value !== '' && Number.isFinite(v) ? Math.min(999_999, Math.max(0, Math.round(v * 100))) : l.price; };
+        const edit = () => {
+          const p = pence();
+          total.textContent = `Total ${formatMoney(receiptTotal(lines.map((x, j) => (j === i ? { name: name.value, price: p } : x))))}`;
+          setLines(ls => { if (ls[i]) ls[i] = { name: name.value, price: p }; return ls; });
+        };
+        const typing = debounce(edit);
+        for (const inp of [name, price]) { inp.addEventListener('input', typing); inp.addEventListener('change', edit); }
+        const x = button('✕', () => { setLines(ls => ls.filter((_, j) => j !== i)); api.render(true); }, 'btn rc-ed-x');
+        x.setAttribute('aria-label', `Remove ${l.name || `item ${i + 1}`}`);
+        editor.append(h('div', { className: 'rc-edit-row' }, name, price, x));
+      });
+      const addLine = button('Add line', () => { setLines(ls => (ls.length >= 40 ? ls : [...ls, { name: 'Item', price: 100 }])); api.render(true); });
+      addLine.disabled = lines.length >= 40;
+      out.push(group('Lines', editor), total, h('div', { className: 'row' }, addLine, reroll('New random receipt', genReceipt)), textSizeRow());
+    }
+    if (it.type === 'casefile') {
+      out.push(textRow('Subject', 'subject', 80), textRow('Officer', 'officer', 60), textRow('Status', 'status', 40), textRow('Date', 'date', 40), areaRow('Notes', 4),
+        h('div', { className: 'row' }, reroll('New random file', genCaseFile)), textSizeRow());
+    }
+    if (it.type === 'sketch') {
+      out.push(h('div', { className: 'row' }, button('Edit sketch', () => {
+        void openSketchPad(document.getElementById('sketchpad') as HTMLDialogElement, it.data.strokes).then(strokes => {
+          if (!strokes) return;
+          commit(b => {
+            const cur = b.items.find(i => i.id === it.id);
+            return cur ? updateItem(b, it.id, { data: { ...cur.data, strokes } }) : b;
+          });
+        });
+      })));
+    }
+    if (it.type === 'stamp') {
+      const sel = h('select');
+      for (const st of STAMPS) sel.append(h('option', { value: st.id, textContent: st.label === '?' ? 'Question mark' : st.label, selected: (it.data.stamp ?? 'evidence') === st.id }));
+      sel.addEventListener('change', () => patchData({ stamp: sel.value as StampId }));
+      out.push(field('Stamp', sel));
+    }
+    if (it.type === 'object') {
+      const sel = h('select');
+      for (const o of OBJECTS) sel.append(h('option', { value: o.id, textContent: o.name, selected: (it.data.object ?? 'keys') === o.id }));
+      sel.addEventListener('change', () => patchData({ object: sel.value as ObjectId }));
+      out.push(field('Object', sel), textRow('Tag', 'caption', 200), textSizeRow());
+    }
+    const flag = (label: string, key: 'aged' | 'crossed') => {
+      const cb = h('input', { type: 'checkbox', checked: !!it.data[key] });
+      cb.addEventListener('change', () => patchData({ [key]: cb.checked ? true : undefined }));
+      return h('label', { className: 'check' }, cb, ` ${label}`);
+    };
+    const looks = [flag('Aged look (yellowed, foxed paper)', 'aged'), flag('Cross it out (red X)', 'crossed')];
     if (it.type === 'sticky' || it.type === 'index') {
       const ta = h('textarea', { value: it.data.text ?? '', rows: 4, maxLength: 5000 });
       ta.addEventListener('input', debounce(() => patchData({ text: ta.value })));
@@ -125,8 +234,9 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       });
       held.append(b);
     }
-    out.push(group('Held by', held));
-    out.push(group('Colour', swatches(PIN_COLORS, it.attachColor, 'Pin colour', c => commit(b => updateItem(b, it.id, { attachColor: c })))));
+    out.push(...looks);
+    if (it.type !== 'stamp') out.push(group('Held by', held));
+    if (it.type !== 'stamp') out.push(group('Colour', swatches(PIN_COLORS, it.attachColor, 'Pin colour', c => commit(b => updateItem(b, it.id, { attachColor: c })))));
     const tilt = h('input', { type: 'range', min: '-180', max: '180', step: '1', value: String(Math.round(it.rot)) });
     tilt.addEventListener('change', () => commit(b => updateItem(b, it.id, { rot: Number(tilt.value) })));
     out.push(field('Rotation', tilt));
@@ -228,6 +338,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       field('Mood', moodSel),
       field('Board surface', surfSel),
       h('p', { className: 'hint' }, 'Mood sets the light, sound and board. Change the board on its own if you like.'),
+      h('div', { className: 'row' }, b.closed ? button('Reopen the case', () => commit(x => ({ ...x, closed: undefined }))) : button('Close the case', deps.closeCase)),
       h('div', { className: 'row' }, button('Export case file', deps.exportBoard), button('Import case file', () => file.click()), file),
       h('p', { className: 'hint' }, 'A case file is one .json file with the photos inside. Everything stays on this device.'),
       h('div', { className: 'row' }, button('Clear the board', deps.clearBoard), button('Burn this case', deps.deleteCase, 'btn danger')),

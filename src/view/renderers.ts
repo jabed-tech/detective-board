@@ -1,5 +1,6 @@
 import { OBJECTS, SKETCH_VIEW, STAMPS } from '../model/types';
 import type { Item, ItemType } from '../model/types';
+import { formatMoney, receiptTotal } from '../model/generators';
 import { objectSvg, stampSvg } from './art';
 import '../styles/content.css';
 
@@ -7,7 +8,6 @@ const NAMES: Record<ItemType, string> = { photo: 'Photograph', polaroid: 'Polaro
   mugshot: 'Mugshot', newspaper: 'Newspaper clipping', receipt: 'Receipt', casefile: 'Case file', sketch: 'Sketch', stamp: 'Stamp', object: 'Object' };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const money = (p: number) => '£' + (p / 100).toFixed(2);
 
 function add<K extends keyof HTMLElementTagNameMap>(parent: Element, tag: K, cls: string): HTMLElementTagNameMap[K] {
   const n = document.createElement(tag);
@@ -87,12 +87,12 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
       for (const l of lines) {
         const li = add(ul, 'li', 'rc-line');
         span(li, 'rc-name', l.name);
-        span(li, 'rc-price', money(l.price));
+        span(li, 'rc-price', formatMoney(l.price));
       }
       add(body, 'div', 'rc-rule');
       const t = add(body, 'div', 'rc-total');
       span(t, 'rc-name', 'TOTAL');
-      span(t, 'rc-price', money(lines.reduce((s, l) => s + l.price, 0)));
+      span(t, 'rc-price', formatMoney(receiptTotal(lines)));
       break;
     }
     case 'casefile': {
