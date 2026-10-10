@@ -3,13 +3,23 @@
 .strings-layer:not(.string-hits) { z-index: 3; }
 .string-hits path { fill: none; }
 .str path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.str-shadow { stroke: rgba(0, 0, 0, .28); stroke-width: 4; transform: translate(3px, 8px); }
-.str-halo { stroke: rgba(12, 8, 4, .6); stroke-width: 6; }   /* keeps red visible on any surface */
-.str-main { stroke-width: 3; }
-.str-hit { stroke: transparent; stroke-width: calc(28px * var(--inv-scale, 1)); pointer-events: stroke; cursor: ns-resize; }
-.str.selected .str-halo { stroke: var(--focus); stroke-width: 8; }
-.str-preview { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 6; opacity: .7; }
+.str-shadow { stroke: rgba(0, 0, 0, .28); stroke-width: calc(4px * var(--sw, 1)); transform: translate(3px, 8px); }
+.str-halo { stroke: rgba(12, 8, 4, .6); stroke-width: calc(6px * var(--sw, 1)); }   /* keeps red visible on any surface */
+.str-main { stroke-width: calc(3px * var(--sw, 1)); }
+.str-hit { stroke: transparent; stroke-width: max(calc(28px * var(--inv-scale, 1)), calc(8px * var(--sw, 1))); pointer-events: stroke; cursor: ns-resize; }
+.str.selected .str-halo { stroke: var(--focus); stroke-width: calc(8px * var(--sw, 1)); }
+.str-preview { fill: none; stroke-width: calc(3px * var(--sw, 1)); stroke-linecap: round; stroke-dasharray: 6 6; opacity: .7; }
 .str-preview.snapped { stroke-dasharray: none; opacity: .9; }
-.str.hot .str-halo { stroke: #c0392b; stroke-width: 9; }
+.str.hot .str-halo { stroke: #c0392b; stroke-width: calc(9px * var(--sw, 1)); }
 .str.hot .str-main { stroke-dasharray: 10 6; }
 #world[data-mode="erase"] .str-hit { cursor: crosshair; }
+
+.mat-twine .str-main { stroke-width: calc(2.2px * var(--sw, 1)); }
+.mat-marker .str-main { stroke-width: calc(4px * var(--sw, 1)); stroke-linecap: round; }
+.mat-marker .str-shadow { display: none; }
+.mat-marker .str-halo { opacity: .35; }
+.str-arrow { stroke: rgba(12, 8, 4, .6); stroke-width: 1.5; paint-order: stroke; pointer-events: none; }
+.str-arrow[hidden] { display: none; }
+.str-label { pointer-events: none; }
+.str-label rect { fill: #f4eedd; stroke: rgba(0, 0, 0, .45); stroke-width: 1; }
+.str-label text { font: 22px var(--font-hand); fill: #22201a; text-anchor: middle; dominant-baseline: central; }

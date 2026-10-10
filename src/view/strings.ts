@@ -1,5 +1,6 @@
 import { BOARD_H, BOARD_W, type Board, type Item, type Link } from '../model/types';
 import { anchorPoint, clamp } from '../model/geometry';
+import { arrowHead, hashSeed, markerPath, pathMidpoint } from './linePaths';
 import { createRope, ropePath, staticPath, stepRope, type Rope } from './rope';
 
 type Pt = { x: number; y: number };
@@ -15,7 +16,7 @@ export interface StringsDeps {
 export interface StringsView {
   sync(board: Board, settle?: boolean): void;
   override(itemId: string, pos: Override | null): void;
-  preview(from: Pt | null, to?: Pt, color?: string, snapped?: boolean): void;
+  preview(from: Pt | null, to?: Pt, color?: string, snapped?: boolean, thickness?: number): void;
   setSelected(linkId: string | null): void;
 }
 
@@ -26,6 +27,7 @@ const NS = 'http://www.w3.org/2000/svg';
 interface Entry {
   link: Link; g: SVGGElement; hg: SVGGElement; paths: SVGPathElement[]; main: SVGPathElement; halo: SVGPathElement;
   rope: Rope; tension: number; awake: boolean; d: string;
+  arrows: [SVGPathElement, SVGPathElement]; label: { g: SVGGElement; rect: SVGRectElement; text: SVGTextElement } | null;
 }
 
 export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: StringsDeps): StringsView {
@@ -53,13 +55,62 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
   function style(e: Entry) {
     e.main.style.stroke = e.link.color;
     const dash = e.link.style === 'dashed' ? '14 8' : e.link.style === 'dotted' ? '1 8' : '';
-    e.main.style.strokeDasharray = dash;
+    const mat = e.link.material ?? 'yarn';
+    e.main.style.strokeDasharray = dash || (mat === 'twine' ? '7 1.2' : '');
     e.halo.style.strokeDasharray = dash;
+    for (const m of ['yarn', 'twine', 'marker']) e.g.classList.toggle(`mat-${m}`, m === mat);
+    e.g.style.setProperty('--sw', String(e.link.thickness ?? 1));
+    const arrow = e.link.arrow;
+    e.arrows[0].toggleAttribute('hidden', arrow !== 'both');
+    e.arrows[1].toggleAttribute('hidden', !arrow);
+    for (const p of e.arrows) p.style.fill = e.link.color;
+    const lab = e.link.label;
+    if (lab) {
+      if (!e.label) {
+        const g = document.createElementNS(NS, 'g');
+        g.setAttribute('class', 'str-label');
+        const rect = document.createElementNS(NS, 'rect');
+        rect.setAttribute('rx', '3');
+        const text = document.createElementNS(NS, 'text');
+        g.append(rect, text);
+        e.g.append(g);
+        e.label = { g, rect, text };
+      }
+      if (e.label.text.textContent !== lab) e.label.text.textContent = lab;
+    } else if (e.label) { e.label.g.remove(); e.label = null; }
+  }
+  /** Arrowheads and label follow the drawn path (skipped where SVG geometry APIs are missing, e.g. jsdom). */
+  function decorate(e: Entry) {
+    const m = e.main;
+    if (typeof m.getTotalLength !== 'function' || !e.d) return;
+    try {
+      const L = m.getTotalLength();
+      if (L > 0) {
+        const size = 14 * (e.link.thickness ?? 1);
+        const end = m.getPointAtLength(L), endFrom = m.getPointAtLength(L * 0.92);
+        e.arrows[1].setAttribute('d', arrowHead(end, endFrom, size));
+        const st = m.getPointAtLength(0), stFrom = m.getPointAtLength(L * 0.08);
+        e.arrows[0].setAttribute('d', arrowHead(st, stFrom, size));
+      }
+    } catch { /* geometry unavailable */ }
+    if (e.label && typeof e.label.text.getBBox === 'function') {
+      const mid = pathMidpoint(m);
+      if (!mid) return;
+      try {
+        const bb = e.label.text.getBBox();
+        e.label.g.setAttribute('transform', `translate(${mid.x} ${mid.y})`);
+        e.label.rect.setAttribute('x', String(bb.x - 4));
+        e.label.rect.setAttribute('y', String(bb.y - 4));
+        e.label.rect.setAttribute('width', String(bb.width + 8));
+        e.label.rect.setAttribute('height', String(bb.height + 8));
+      } catch { /* not laid out */ }
+    }
   }
   function draw(e: Entry, d: string) {
     if (d === e.d) return;
     e.d = d;
     for (const p of e.paths) p.setAttribute('d', d);
+    decorate(e);
   }
   function tick() {
     raf = 0;
@@ -70,8 +121,11 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
       const pts = ends(e.link);
       if (!pts) { e.awake = false; continue; }
       const [a, b] = pts;
-      if (rm) { draw(e, staticPath(a.x, a.y, b.x, b.y, e.tension)); e.awake = false; continue; }
-      e.awake = stepRope(e.rope, a.x, a.y, b.x, b.y, e.tension);
+      const mat = e.link.material ?? 'yarn';
+      if (mat === 'marker') { draw(e, markerPath(a, b, hashSeed(e.link.id))); e.awake = false; continue; }
+      const tn = mat === 'twine' ? e.tension * 0.5 : e.tension;
+      if (rm) { draw(e, staticPath(a.x, a.y, b.x, b.y, tn)); e.awake = false; continue; }
+      e.awake = stepRope(e.rope, a.x, a.y, b.x, b.y, tn);
       draw(e, ropePath(e.rope));
       any ||= e.awake;
     }
@@ -98,9 +152,9 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     if (!tdrag || ev.pointerId !== tdrag.pointerId) return;
     const dy = (ev.clientY - tdrag.sy) / deps.scale();
     if (deps.erasing()) return; // in Erase mode a tap deletes; no tension drag
-    if (Math.abs(dy) > 4) tdrag.moved = true;
+    if (Math.abs(dy) > 4 && entries.get(tdrag.id)?.link.material !== 'marker') tdrag.moved = true;
     const e = entries.get(tdrag.id);
-    if (!e || !tdrag.moved) return;
+    if (!e || !tdrag.moved || e.link.material === 'marker') return;
     tdrag.t = clamp(tdrag.start + dy / 250, 0, 1);
     e.tension = tdrag.t;
     e.awake = true;
@@ -139,7 +193,9 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
           g.setAttribute('class', 'str');
           g.dataset.linkId = l.id;
           const shadow = path('str-shadow'), halo = path('str-halo'), main = path('str-main'), hit = path('str-hit');
-          g.append(shadow, halo, main);
+          const arrows: [SVGPathElement, SVGPathElement] = [path('str-arrow'), path('str-arrow')];
+          for (const p of arrows) p.setAttribute('hidden', '');
+          g.append(shadow, halo, main, ...arrows);
           svg.insertBefore(g, previewPath);
           const hg = document.createElementNS(NS, 'g');
           hg.dataset.linkId = l.id;
@@ -151,13 +207,14 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
           e = {
             link: l, g, hg, paths: [shadow, halo, main, hit], main, halo,
             rope: createRope(pts[0].x, pts[0].y, pts[1].x, pts[1].y, l.tension, startSettled),
-            tension: l.tension, awake: true, d: '',
+            tension: l.tension, awake: true, d: '', arrows, label: null,
           };
           entries.set(l.id, e);
         }
         if (e.link !== l) { e.link = l; if (!tdrag || tdrag.id !== l.id) e.tension = l.tension; }
         e.g.classList.toggle('selected', l.id === selected);
         style(e);
+        decorate(e);
         e.awake = true;
       }
       for (const [id, e] of entries) if (!seen.has(id)) { e.g.remove(); e.hg.remove(); entries.delete(id); }
@@ -167,8 +224,9 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
       if (pos) overrides.set(itemId, pos); else overrides.delete(itemId);
       wake(itemId);
     },
-    preview(from, to, color = '#b3261e', snapped = false) {
+    preview(from, to, color = '#b3261e', snapped = false, thickness = 1) {
       previewPath.classList.toggle('snapped', snapped);
+      previewPath.style.setProperty('--sw', String(thickness));
       if (!from || !to) { previewPath.removeAttribute('d'); return; }
       previewPath.style.stroke = color;
       previewPath.setAttribute('d', staticPath(from.x, from.y, to.x, to.y, 0.3));
