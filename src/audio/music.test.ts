@@ -68,6 +68,51 @@ describe('music', () => {
     a.paused = true; // e.g. audio focus lost, headset unplugged
     expect(m.settled()).toBe(false);
   });
+  it('a retry after an external pause is not settled until its own play() resolves', async () => {
+    const { a, m } = mk();
+    const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
+    m.setOn(true); m.unlock();
+    await Promise.resolve(); await Promise.resolve();
+    expect(m.settled()).toBe(true);
+    a.paused = true; a.dispatchEvent(new Event('pause')); // external pause
+    expect(m.settled()).toBe(false);
+    let resolvePlay!: () => void;
+    a.play.mockImplementationOnce(() => { a.paused = false; return new Promise<void>(r => { resolvePlay = r; }); });
+    m.unlock();
+    expect(a.play).toHaveBeenCalledTimes(2);
+    expect(a.paused).toBe(false);
+    expect(m.settled()).toBe(false); // retry pending
+    await Promise.resolve(); await Promise.resolve();
+    expect(m.settled()).toBe(false); // still pending
+    resolvePlay();
+    await Promise.resolve(); await Promise.resolve();
+    expect(m.settled()).toBe(true);
+  });
+  it('a pause event clears confirmation even if paused was polled true later', async () => {
+    const { a, m } = mk();
+    const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
+    m.setOn(true); m.unlock();
+    await Promise.resolve(); await Promise.resolve();
+    a.paused = true; a.dispatchEvent(new Event('pause'));
+    a.paused = false; // element resumed without our play() (e.g. media keys)
+    expect(m.settled()).toBe(false);
+  });
+  it('ignores a stale play() resolving after a newer load', async () => {
+    const { a, m } = mk();
+    const p1 = m.load(blob);
+    let resolveOld!: () => void;
+    a.play.mockImplementationOnce(() => { a.paused = false; return new Promise<void>(r => { resolveOld = r; }); });
+    a.dispatchEvent(new Event('loadedmetadata')); await p1;
+    m.setOn(true); m.unlock();
+    expect(a.play).toHaveBeenCalledTimes(1);
+    const p2 = m.load(blob); // pauses, new generation
+    a.play.mockImplementationOnce(() => { a.paused = false; return new Promise<void>(() => { /* pending */ }); });
+    a.dispatchEvent(new Event('loadedmetadata')); await p2;
+    expect(a.play).toHaveBeenCalledTimes(2);
+    resolveOld();
+    await Promise.resolve(); await Promise.resolve();
+    expect(m.settled()).toBe(false); // old attempt must not confirm the new one
+  });
   it('respects the gesture and mute', async () => {
     const { a, m } = mk();
     const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;

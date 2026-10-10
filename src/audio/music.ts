@@ -13,7 +13,11 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
   let on = false;
   let muted = false;
   let unlocked = false;
-  let confirmed = false; // true only once a play() promise has resolved
+  let attempt = 0; // bumped for every play() call, load and clear; stale results are ignored
+  let confirmed = false; // true only once the current play() attempt has resolved
+
+  // Any real pause (external or ours) means playback is no longer confirmed.
+  audio.addEventListener('pause', () => { if (audio.paused) confirmed = false; });
 
   function revoke(): void {
     if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } url = null; }
@@ -21,16 +25,21 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
   function sync(): void {
     const want = on && !muted && unlocked && loaded;
     if (want && audio.paused) {
-      const my = gen;
+      const my = ++attempt;
+      confirmed = false; // a new attempt is pending until its own promise resolves
       try {
-        Promise.resolve(audio.play()).then(() => { if (my === gen) confirmed = !audio.paused; }, () => { confirmed = false; });
+        Promise.resolve(audio.play()).then(
+          () => { if (my === attempt) confirmed = !audio.paused; },
+          () => { if (my === attempt) confirmed = false; },
+        );
       } catch { confirmed = false; }
-    } else if (!want && !audio.paused) { audio.pause(); confirmed = false; }
+    } else if (!want && !audio.paused) { attempt++; audio.pause(); confirmed = false; }
     else if (!want) confirmed = false;
   }
 
   return {
     load(blob) {
+      attempt++;
       audio.pause();
       confirmed = false;
       revoke();
@@ -65,7 +74,7 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
     unlock() { unlocked = true; sync(); }, // later calls retry a rejected play()
     settled() { return !(on && !muted && loaded) || (confirmed && !audio.paused); },
     clear() {
-      gen++;
+      gen++; attempt++;
       on = false; loaded = false; confirmed = false;
       audio.pause();
       revoke();
