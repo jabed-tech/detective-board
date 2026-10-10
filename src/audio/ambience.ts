@@ -188,11 +188,12 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   const layers = new Map<AmbienceId, Layer>();
 
   const target = (): number => (muted || !enabled ? 0 : volume);
-  const audible = (): boolean => enabled && !muted && !(typeof document !== 'undefined' && document.hidden);
+  const audible = (): boolean => enabled && !muted && volume > 0 && !(typeof document !== 'undefined' && document.hidden);
 
   function applyMaster(): void {
     if (ctx && master) master.gain.setTargetAtTime(target(), ctx.currentTime, 0.1);
   }
+  function onVisibility(): void { applyLayers(); applyRunState(); }
   function applyRunState(): void {
     if (!ctx) return;
     if (audible()) { if (ctx.state !== 'running') void ctx.resume().catch(() => {}); }
@@ -210,8 +211,8 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     let dead = false;
     const env: Env = {
       c, out: gain, noise: noise!,
-      later(fn, ms) { const h = setTimeout(() => { timers.delete(h); if (!dead) fn(); }, ms); timers.add(h); },
-      every(fn, ms) { timers.add(setInterval(() => { if (!dead) fn(); }, ms)); },
+      later(fn, ms) { const h = setTimeout(() => { timers.delete(h); if (!dead && audible()) fn(); }, ms); timers.add(h); },
+      every(fn, ms) { timers.add(setInterval(() => { if (!dead && audible()) fn(); }, ms)); },
     };
     const teardown = BUILDERS[id](env);
     layers.set(id, {
@@ -236,7 +237,12 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   }
   function applyLayers(): void {
     if (!ctx) return;
-    const want = new Set<AmbienceId>(enabled && mood ? layersFor(mood, musicPlaying) : []);
+    if (!audible()) {
+      // Silent: stop scheduling at once (callbacks check audible()), tear down after the master fade.
+      for (const [id, l] of [...layers]) { layers.delete(id); setTimeout(() => l.stop(), 400); }
+      return;
+    }
+    const want = new Set<AmbienceId>(mood ? layersFor(mood, musicPlaying) : []);
     for (const id of [...layers.keys()]) if (!want.has(id)) fadeOut(id);
     for (const id of want) if (!layers.has(id)) startLayer(id);
   }
@@ -251,7 +257,7 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     const d = noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', applyRunState);
+      document.addEventListener('visibilitychange', onVisibility);
     }
     applyMaster();
     applyLayers();
@@ -262,8 +268,8 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     unlock() { if (unlocked) return; unlocked = true; create(); },
     setMood(id) { mood = id; applyLayers(); },
     setEnabled(on) { enabled = on; applyMaster(); applyLayers(); applyRunState(); },
-    setVolume(v) { volume = v; applyMaster(); },
-    setMuted(m) { muted = m; applyMaster(); applyRunState(); },
+    setVolume(v) { volume = v; applyMaster(); applyLayers(); applyRunState(); },
+    setMuted(m) { muted = m; applyMaster(); applyLayers(); applyRunState(); },
     setMusicPlaying(on) { musicPlaying = on; applyLayers(); },
   };
 }

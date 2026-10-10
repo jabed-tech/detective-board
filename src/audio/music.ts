@@ -8,6 +8,7 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
   const audio = makeAudio();
   audio.loop = true;
   let url: string | null = null;
+  let gen = 0;
   let loaded = false;
   let on = false;
   let muted = false;
@@ -27,15 +28,18 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
       audio.pause();
       revoke();
       loaded = false;
-      url = URL.createObjectURL(blob);
+      const my = ++gen;
+      const myUrl = url = URL.createObjectURL(blob);
       return new Promise<boolean>(resolve => {
         let done = false;
         const finish = (ok: boolean): void => {
           if (done) return;
           done = true;
+          const stale = my !== gen;
           clearTimeout(timer);
           audio.removeEventListener('loadedmetadata', onOk);
           audio.removeEventListener('error', onErr);
+          if (stale) { resolve(false); return; }
           if (ok) { loaded = true; sync(); } else { revoke(); }
           resolve(ok);
         };
@@ -44,7 +48,7 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
         const timer = setTimeout(() => finish(false), 8000);
         audio.addEventListener('loadedmetadata', onOk);
         audio.addEventListener('error', onErr);
-        audio.src = url!;
+        audio.src = myUrl;
         audio.load();
       });
     },
@@ -53,6 +57,7 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
     setMuted(m) { muted = m; sync(); },
     unlock() { unlocked = true; sync(); },
     clear() {
+      gen++;
       on = false; loaded = false;
       audio.pause();
       revoke();

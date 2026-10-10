@@ -57,4 +57,33 @@ describe('ambience', () => {
     a.setMuted(false);
     expect(master.last).toBe(0.5);
   });
+  it('muting stops scheduling new nodes', () => {
+    const f = fakeCtx(); const a = createAmbience(() => f.ctx as unknown as AudioContext);
+    a.setEnabled(true); a.setMood('noir-office'); a.unlock();
+    vi.advanceTimersByTime(500);
+    a.setMuted(true);
+    vi.advanceTimersByTime(1000);
+    const n = f.ctx.createBufferSource.mock.calls.length + f.ctx.createOscillator.mock.calls.length;
+    vi.advanceTimersByTime(10000);
+    expect(f.ctx.createBufferSource.mock.calls.length + f.ctx.createOscillator.mock.calls.length).toBe(n);
+    expect(f.ctx.suspend).toHaveBeenCalled();
+    a.setMuted(false);
+    expect(f.ctx.createBufferSource.mock.calls.length).toBeGreaterThan(0);
+  });
+  it('a hidden document stops scheduling new nodes', () => {
+    const f = fakeCtx(); const a = createAmbience(() => f.ctx as unknown as AudioContext);
+    const listeners: Array<() => void> = [];
+    let hidden = false;
+    vi.stubGlobal('document', { get hidden() { return hidden; }, addEventListener: (_: string, fn: () => void) => listeners.push(fn) });
+    try {
+      a.setEnabled(true); a.setMood('noir-office'); a.unlock();
+      vi.advanceTimersByTime(500);
+      hidden = true; listeners.forEach(l => l());
+      vi.advanceTimersByTime(1000);
+      const n = f.ctx.createBufferSource.mock.calls.length + f.ctx.createOscillator.mock.calls.length;
+      vi.advanceTimersByTime(10000);
+      expect(f.ctx.createBufferSource.mock.calls.length + f.ctx.createOscillator.mock.calls.length).toBe(n);
+      expect(f.ctx.suspend).toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
 });

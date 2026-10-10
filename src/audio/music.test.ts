@@ -56,4 +56,26 @@ describe('music', () => {
     m.unlock(); m.setOn(true);
     m.clear(); expect(a.pause).toHaveBeenCalled(); expect(revoke).toHaveBeenCalledWith('blob:1'); expect(m.playing()).toBe(false);
   });
+  it('a stale load does not revoke or mark the newer load', async () => {
+    const { a, m } = mk();
+    const pA = m.load(blob);
+    const pB = m.load(blob);
+    vi.advanceTimersByTime(8000 - 1);
+    a.dispatchEvent(new Event('loadedmetadata'));
+    expect(await pB).toBe(true);
+    expect(await pA).toBe(false);
+    expect(revoke).not.toHaveBeenCalledWith('blob:2');
+    m.setOn(true); m.unlock(); expect(a.play).toHaveBeenCalled();
+  });
+  it('a stale load timeout does not revoke the newer url', async () => {
+    const { a, m } = mk();
+    const pA = m.load(blob);
+    vi.advanceTimersByTime(5000);
+    const pB = m.load(blob);
+    vi.advanceTimersByTime(3000); // A's timer elapses
+    expect(await pA).toBe(false);
+    expect(revoke).not.toHaveBeenCalledWith('blob:2');
+    a.dispatchEvent(new Event('loadedmetadata'));
+    expect(await pB).toBe(true);
+  });
 });
