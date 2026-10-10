@@ -60,8 +60,11 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
       b.setAttribute('aria-pressed', String(n === size));
       nibs.push(b); bar.append(b);
     }
-    const undo = () => { strokes.pop(); redraw(); };
-    bar.append(button('Undo stroke', undo), button('Clear', () => { strokes.length = 0; redraw(); }));
+    let activeId: number | null = null;
+    let pin: HTMLButtonElement;
+    const sync = () => { if (pin) pin.disabled = strokes.length === 0; };
+    const undo = () => { if (activeId !== null) return; strokes.pop(); redraw(); sync(); };
+    bar.append(button('Undo stroke', undo), button('Clear', () => { if (activeId !== null) return; strokes.length = 0; redraw(); sync(); }));
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (result: SketchStroke[] | null) => {
@@ -78,7 +81,7 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
       if (dialog.open) dialog.close();
       resolve(result);
     };
-    const pin = button('Pin it up', () => {
+    pin = button('Pin it up', () => {
       const r = capStrokes(strokes);
       if (r.capped) {
         hint.textContent = "That's a lot of ink — some strokes were left off.";
@@ -87,26 +90,28 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
       } else finish(r.strokes);
     }, 'btn primary');
     bar.append(button('Cancel', () => finish(null)), pin);
+    sync();
 
     // pointer handling
-    let activeId: number | null = null;
     let points: InputPoint[] = [];
     let cur: SVGPathElement | null = null;
     let curSize = size;
     let curColor = color;
     let simulate = true;
-    const toView = (e: PointerEvent): [number, number] => {
+    const toView = (e: PointerEvent): [number, number] | null => {
       const m = svg.getScreenCTM();
-      if (!m) return [0, 0];
+      if (!m) return null;
       const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
       return [p.x, p.y];
     };
     const onDown = (e: PointerEvent) => {
       if (activeId !== null) return;
+      const v = toView(e);
+      if (!v) return;
+      const [x, y] = v;
       activeId = e.pointerId;
       svg.setPointerCapture(e.pointerId);
       curSize = size; curColor = color; simulate = e.pointerType !== 'pen';
-      const [x, y] = toView(e);
       points = [[x, y, e.pressure || 0.5]];
       cur = addPath({ d: '', color: curColor, width: curSize });
       cur.setAttribute('d', strokePath(points, curSize, simulate));
@@ -114,7 +119,9 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== activeId || !cur) return;
-      const [x, y] = toView(e);
+      const v = toView(e);
+      if (!v) return;
+      const [x, y] = v;
       points.push([x, y, e.pressure || 0.5]);
       cur.setAttribute('d', strokePath(points, curSize, simulate));
     };
@@ -125,6 +132,7 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
       if (d) strokes.push({ d, color: curColor, width: curSize });
       else cur?.remove();
       cur = null; points = [];
+      sync();
     };
     svg.addEventListener('pointerdown', onDown);
     svg.addEventListener('pointermove', onMove);
@@ -132,8 +140,10 @@ export function openSketchPad(dialog: HTMLDialogElement, init: SketchStroke[] = 
     svg.addEventListener('pointercancel', onUp);
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault(); e.stopPropagation(); undo();
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) {
+        e.preventDefault(); e.stopPropagation();
+        if (k === 'z' && !e.shiftKey) undo();
       } else if (e.key === 'Escape') {
         e.preventDefault(); e.stopPropagation(); finish(null);
       }
