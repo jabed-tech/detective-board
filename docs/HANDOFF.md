@@ -1,4 +1,4 @@
-# Handoff — where we left off (2026-10-09)
+# Handoff — where we left off (2026-10-10)
 
 Branch: `phase-1` (not merged to `master`, not pushed — no GitHub repo created yet).
 Spec: `docs/specs/2026-10-09-detective-board-design.md` · Plan: `docs/plans/phase-1/00-overview.md` + task files 01–20.
@@ -13,7 +13,12 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 ## In flight when we stopped
 - **Task 19** browser-verified 2026-10-10. **Task 20** (text size) committed + browser-verified. Known nits from implementer: hover and string-target highlight share `.hot` (one can clear the other); in Move mode the hot glow overrides the lifted shadow during drag.
 
-## Next steps
+## 2026-10-10
+- Tasks 20 (text size) and 21 (cards grow to fit text) done and browser-verified; string click-through bug fixed (d898205); `.gitattributes` forces LF.
+- User decisions: stay **local only** until told otherwise (no GitHub repo/Pages yet); build phases 2 + 3 **together**; add export (PNG/JPEG/WebP/PDF, whole board/view/item); add string thickness + extras (arrows, swap direction, labels).
+- Plan written: `docs/plans/phase-2-3/` (00-overview + tasks 01–14). Waves: A T1 · B T2–T8 parallel · C T9 + T11 · D T10 + T12 · E T13 · F T14 verify/review. Awaiting user review before execution.
+
+## Next steps (phase 1 leftovers, lower priority now)
 1. (done) Tasks 19–20 verified. Test in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
 2. Browser checks still outstanding: snap-to-pin default in String mode (unit-tested only), touch-only undo/redo, Task 14 step 3 checklist items 6–7 (large photo upload, export → burn → import round trip), reduced-motion.
 3. `/ponytail-review` or a final scoped review of tasks 19 + fix wave.
