@@ -14,7 +14,7 @@
 .str.hot .str-main { stroke-dasharray: 10 6; }
 #world[data-mode="erase"] .str-hit { cursor: crosshair; }
 
-.mat-twine .str-main { stroke-width: calc(2.2px * var(--sw, 1)); }
+.mat-twine .str-main { stroke-width: calc(2.2px * var(--sw, 1)); stroke-linecap: butt; }
 .mat-marker .str-main { stroke-width: calc(4px * var(--sw, 1)); stroke-linecap: round; }
 .mat-marker .str-shadow { display: none; }
 .mat-marker .str-halo { opacity: .35; }

@@ -60,6 +60,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     e.halo.style.strokeDasharray = dash;
     for (const m of ['yarn', 'twine', 'marker']) e.g.classList.toggle(`mat-${m}`, m === mat);
     e.g.style.setProperty('--sw', String(e.link.thickness ?? 1));
+    e.hg.style.setProperty('--sw', String(e.link.thickness ?? 1));
     const arrow = e.link.arrow;
     e.arrows[0].toggleAttribute('hidden', arrow !== 'both');
     e.arrows[1].toggleAttribute('hidden', !arrow);
@@ -85,7 +86,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
     if (typeof m.getTotalLength !== 'function' || !e.d) return;
     try {
       const L = m.getTotalLength();
-      if (L > 0) {
+      if (L > 0 && e.link.arrow) {
         const size = 14 * (e.link.thickness ?? 1);
         const end = m.getPointAtLength(L), endFrom = m.getPointAtLength(L * 0.92);
         e.arrows[1].setAttribute('d', arrowHead(end, endFrom, size));
@@ -93,7 +94,7 @@ export function createStrings(svg: SVGSVGElement, hitSvg: SVGSVGElement, deps: S
         e.arrows[0].setAttribute('d', arrowHead(st, stFrom, size));
       }
     } catch { /* geometry unavailable */ }
-    if (e.label && typeof e.label.text.getBBox === 'function') {
+    if (e.label && e.link.label && typeof e.label.text.getBBox === 'function') {
       const mid = pathMidpoint(m);
       if (!mid) return;
       try {

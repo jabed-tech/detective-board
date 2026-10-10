@@ -34,6 +34,7 @@ describe('strings view materials, arrows, labels', () => {
     const { b, id } = base();
     view.sync(updateLink(b, id, { thickness: 2.4 }));
     expect((svg.querySelector('.str') as SVGGElement).getAttribute('style')).toContain('--sw: 2.4');
+    expect(hit.querySelector('g')!.getAttribute('style')).toContain('--sw: 2.4');
   });
   it('shows arrows per link.arrow', () => {
     const { b, id } = base();
