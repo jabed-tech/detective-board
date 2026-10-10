@@ -4,6 +4,7 @@ import { stampSvg } from '../view/art';
 import { hashSeed } from '../view/linePaths';
 import { drawBackground, drawMood } from './backdrop';
 import { setShadow } from './draw-core';
+import './draw-content';
 import { drawPin } from './pins';
 import { regionFor, type Rect, type Scope } from './region';
 import { drawers } from './registry';
