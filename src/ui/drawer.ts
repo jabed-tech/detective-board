@@ -1,5 +1,6 @@
-import { FASTENERS, ITEM_SIZES, TEXT_STEP, stepTextScale, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
-import { bringToFront, removeItem, removeLink, updateItem, updateLink } from '../model/actions';
+import { FASTENERS, ITEM_SIZES, MATERIALS, MOODS, SURFACES, THICKNESSES, type MoodId, type StringMaterial, type SurfaceId, type LinkArrow, TEXT_STEP, stepTextScale, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
+import { bringToFront, removeItem, removeLink, reverseLink, updateItem, updateLink } from '../model/actions';
+import { moodPatch } from '../model/surfaces';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
 import { scaledGeom, withFit } from '../view/items';
@@ -8,7 +9,7 @@ export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; i
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
   exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void;
-  pickPhoto(itemId: string): void; fitHeight(id: string, data: Item['data']): number | null; setYarn(c: string): void; setLastFastener(id: FastenerId): void;
+  pickPhoto(itemId: string): void; fitHeight(id: string, data: Item['data']): number | null; setYarn(c: string): void; setLastFastener(id: FastenerId): void; setLastThickness(v: number): void;
 }
 
 const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
@@ -19,6 +20,12 @@ const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky 
 export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?: boolean): void } {
   let shownKey = '';
   const commit = (fn: (b: Board) => Board) => deps.store.commit(fn(deps.store.get()));
+
+  /** Rebuild the open panel (a control changed which other controls show) and keep keyboard focus on it. */
+  function rebuild(k: string) {
+    api.render(true);
+    el.querySelector<HTMLElement>(`[data-k="${k}"]`)?.focus();
+  }
 
   function mark(row: Element, c: string) {
     row.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-checked', String((b as HTMLElement).style.getPropertyValue('--c').toLowerCase() === c.toLowerCase())));
@@ -95,7 +102,9 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const held = h('div', { className: 'fasteners' });
     held.setAttribute('role', 'radiogroup');
     held.setAttribute('aria-label', 'Held by');
-    for (const f of FASTENERS) {
+    const surfaceFasteners = SURFACES[deps.store.get().surface].fasteners;
+    const ordered = [...surfaceFasteners.flatMap(id => FASTENERS.filter(f => f.id === id)), ...FASTENERS.filter(f => !surfaceFasteners.includes(f.id))];
+    for (const f of ordered) {
       const icon = h('span', { className: 'pin' });
       icon.dataset.kind = f.id;
       icon.style.setProperty('--pin', it.attachColor);
@@ -142,14 +151,55 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       style.append(h('option', { value: v, textContent: t, selected: (l.style ?? 'solid') === v }));
     }
     style.addEventListener('change', () => commit(b => updateLink(b, l.id, { style: style.value as LineStyle })));
-    return [
+    const material = h('select');
+    for (const m of MATERIALS) material.append(h('option', { value: m.id, textContent: m.name, selected: (l.material ?? 'yarn') === m.id }));
+    material.addEventListener('change', () => {
+      const v = material.value as StringMaterial;
+      commit(b => updateLink(b, l.id, { material: v === 'yarn' ? undefined : v }));
+      rebuild('material');
+    });
+    material.dataset.k = 'material';
+    const marker = l.material === 'marker';
+    const thick = h('div', { className: 'thickness' });
+    for (const t of THICKNESSES) {
+      const sample = h('span', { className: 'thick-sample' });
+      sample.style.setProperty('--sw', String(t.value));
+      sample.setAttribute('aria-hidden', 'true');
+      const b = h('button', { type: 'button', className: 'thick-btn' }, sample, t.name);
+      b.setAttribute('aria-pressed', String((l.thickness ?? 1) === t.value));
+      b.addEventListener('click', () => {
+        thick.querySelectorAll('.thick-btn').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        deps.setLastThickness(t.value);
+        commit(bd => updateLink(bd, l.id, { thickness: t.value === 1 ? undefined : t.value }));
+      });
+      thick.append(b);
+    }
+    const arrows = h('select');
+    for (const [v, t] of [['', 'None'], ['end', 'Arrow at the end'], ['both', 'Arrows at both ends']] as [LinkArrow | '', string][]) {
+      arrows.append(h('option', { value: v, textContent: t, selected: (l.arrow ?? '') === v }));
+    }
+    arrows.addEventListener('change', () => {
+      commit(b => updateLink(b, l.id, { arrow: (arrows.value || undefined) as LinkArrow | undefined }));
+      rebuild('arrows');
+    });
+    arrows.dataset.k = 'arrows';
+    const label = h('input', { type: 'text', value: l.label ?? '', maxLength: 80 });
+    const doLabel = () => commit(b => updateLink(b, l.id, { label: label.value.trim() || undefined }));
+    label.addEventListener('input', debounce(doLabel));
+    label.addEventListener('change', doLabel);
+    const out: Node[] = [
       h('h2', { className: 'drawer-title' }, 'String'),
       group('Colour', sw),
-      field('Droop (taut ↔ saggy)', droop),
-      h('p', { className: 'hint' }, 'Tip: drag the string itself up or down.'),
-      field('Pattern', style),
-      h('div', { className: 'row' }, button('Cut the string', () => commit(b => removeLink(b, l.id)), 'btn danger')),
+      field('Material', material),
+      group('Thickness', thick),
     ];
+    if (marker) out.push(h('p', { className: 'hint' }, 'Marker lines are drawn straight.'));
+    else out.push(field('Droop (taut ↔ saggy)', droop), h('p', { className: 'hint' }, 'Tip: drag the string itself up or down.'));
+    out.push(field('Pattern', style), field('Arrows', arrows));
+    if (l.arrow === 'end') out.push(h('div', { className: 'row' }, button('Swap direction', () => commit(b => reverseLink(b, l.id)))));
+    out.push(field('Label', label), h('p', { className: 'hint' }, 'A few words shown on a tag at the middle of the string.'));
+    out.push(h('div', { className: 'row' }, button('Cut the string', () => commit(b => removeLink(b, l.id)), 'btn danger')));
+    return out;
   }
 
   function boardPanel(b: Board): Node[] {
@@ -160,16 +210,25 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     name.addEventListener('change', rename);
     const file = h('input', { type: 'file', accept: '.json,application/json', className: 'visually-hidden', tabIndex: -1 });
     file.addEventListener('change', () => { const f = file.files?.[0]; if (f) deps.importBoard(f); file.value = ''; });
+    const moodSel = h('select');
+    for (const m of Object.keys(MOODS) as MoodId[]) moodSel.append(h('option', { value: m, textContent: MOODS[m].name, selected: b.mood === m }));
+    moodSel.addEventListener('change', () => { const m = moodSel.value as MoodId; commit(x => ({ ...x, ...moodPatch(m) })); });
+    const surfSel = h('select');
+    for (const s of Object.keys(SURFACES) as SurfaceId[]) surfSel.append(h('option', { value: s, textContent: SURFACES[s].name, selected: b.surface === s }));
+    surfSel.addEventListener('change', () => { const surface = surfSel.value as SurfaceId; commit(x => ({ ...x, surface })); });
     return [
       h('h2', { className: 'drawer-title' }, `Case #${String(b.caseNo).padStart(4, '0')}`),
       field('Case name', name),
+      field('Mood', moodSel),
+      field('Board surface', surfSel),
+      h('p', { className: 'hint' }, 'Mood sets the light, sound and board. Change the board on its own if you like.'),
       h('div', { className: 'row' }, button('Export case file', deps.exportBoard), button('Import case file', () => file.click()), file),
       h('p', { className: 'hint' }, 'A case file is one .json file with the photos inside. Everything stays on this device.'),
       h('div', { className: 'row' }, button('Clear the board', deps.clearBoard), button('Burn this case', deps.deleteCase, 'btn danger')),
     ];
   }
 
-  return {
+  const api = {
     render(force = false) {
       const sel = deps.selection();
       const b = deps.store.get();
@@ -195,4 +254,5 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       el.hidden = false;
     },
   };
+  return api;
 }

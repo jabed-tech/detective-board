@@ -6,7 +6,7 @@ import './styles/strings.css';
 import './styles/mood.css';
 import './styles/chrome.css';
 
-import { YARN_COLORS, type Board, type Item, type ItemType, type Mode } from './model/types';
+import { SURFACES, YARN_COLORS, type Board, type Item, type ItemType, type Mode } from './model/types';
 import { createStore } from './model/store';
 import { addItem, makeItem, newBoard, newId, removeItem, removeLink, updateItem, updateLink } from './model/actions';
 import { clearPrefs, loadPrefs, savePrefs, type Prefs } from './prefs';
@@ -20,7 +20,12 @@ import { createStrings } from './view/strings';
 import { createItems } from './view/items';
 import { createConnect } from './view/connect';
 import { createMood } from './view/mood';
+import { applySurface } from './view/surface';
+import { pickFastener, moodPatch } from './model/surfaces';
 import { createSfx } from './audio/sfx';
+import { createAmbience } from './audio/ambience';
+import { createMusic } from './audio/music';
+import { pickMood } from './ui/newcase';
 import { createDesk } from './ui/desk';
 import { createDrawer, type Selection } from './ui/drawer';
 import { createTabs } from './ui/tabs';
@@ -58,6 +63,8 @@ async function boot() {
 
   const store = createStore(board);
   const sfx = createSfx({ enabled: prefs.sfx, volume: prefs.volume });
+  const ambience = createAmbience();
+  const music = createMusic();
   const viewport = createViewport($('viewport'), $('world'));
   const mood = createMood($('mood'), prefs.atmosphere);
   const live = $('sr-live');
@@ -70,8 +77,16 @@ async function boot() {
     prefs = { ...prefs, ...patch };
     savePrefs(prefs);
     document.documentElement.classList.toggle('neat-hand', prefs.neatHand);
-    sfx.setEnabled(prefs.sfx);
+    sfx.setEnabled(prefs.sfx && !prefs.muted);
     sfx.setVolume(prefs.volume);
+    ambience.setEnabled(prefs.ambience);
+    ambience.setVolume(prefs.ambienceVolume);
+    ambience.setMuted(prefs.muted);
+    music.setVolume(prefs.ambienceVolume);
+    music.setMuted(prefs.muted);
+    music.setOn(prefs.musicOn);
+    ambience.setMusicPlaying(music.playing());
+    mood.setEffects(prefs.effects);
     if (patch.atmosphere) mood.setAtmosphere(patch.atmosphere);
     refreshDesk();
   }
@@ -104,6 +119,8 @@ async function boot() {
   const connect = createConnect({
     store, viewport, strings, items, sfx,
     color: () => yarn,
+    material: () => SURFACES[store.get().surface].material,
+    thickness: () => prefs.lastThickness,
     tension: () => prefs.defaultTension,
     freeAnchors: () => prefs.freeAnchors,
     announce,
@@ -128,6 +145,7 @@ async function boot() {
     fitHeight: (id, data) => items.fitHeight(id, data),
     setYarn: c => { yarn = c; refreshDesk(); },
     setLastFastener: id => setPrefs({ lastFastener: id }),
+    setLastThickness: v => setPrefs({ lastThickness: v }),
   });
   const tabs = createTabs($('tabs'), {
     list: () => metas,
@@ -139,6 +157,8 @@ async function boot() {
     prefs: () => prefs,
     setPrefs,
     burnAll: () => void burnAll(),
+    chooseMusic,
+    removeMusic,
   });
   const desk = createDesk($('desk'), {
     addItem: t => void addNew(t),
@@ -147,7 +167,7 @@ async function boot() {
     zoom: f => viewport.zoomBy(f),
     undo: () => store.undo(),
     redo: () => store.redo(),
-    toggleMute: () => setPrefs({ sfx: !prefs.sfx }),
+    toggleMute: () => setPrefs({ muted: !prefs.muted }),
     openCaseFile: () => select({ kind: 'board' }),
     openSettings: () => settings.open(),
   });
@@ -162,7 +182,16 @@ async function boot() {
     announce('Removed.');
   }
   function refreshDesk() {
-    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), mode, yarn, muted: !prefs.sfx });
+    desk.update({ canUndo: store.canUndo(), canRedo: store.canRedo(), mode, yarn, muted: prefs.muted });
+  }
+
+  let look: { surface: Board['surface']; mood: Board['mood'] } | null = null;
+  function syncLook(b: Board) {
+    if (look && look.surface === b.surface && look.mood === b.mood) return;
+    look = { surface: b.surface, mood: b.mood };
+    applySurface($('surface'), b.surface);
+    mood.setMood(b.mood);
+    ambience.setMood(b.mood);
   }
 
   function updateLight() {
@@ -190,6 +219,7 @@ async function boot() {
   }
 
   store.subscribe((b, reason) => {
+    syncLook(b);
     strings.sync(b, reason === 'load');
     items.sync(b);
     const s = sel;
@@ -242,7 +272,7 @@ async function boot() {
 
   async function addNew(type: ItemType | 'unknown') {
     const c = viewport.centerWorld();
-    const opts = { attach: prefs.lastFastener, tilt: prefs.tiltNew };
+    const opts = { attach: pickFastener(store.get().surface, prefs.lastFastener), tilt: prefs.tiltNew };
     let it: Item;
     if (type === 'unknown') {
       it = makeItem('polaroid', c.x, c.y, { unknown: true, caption: 'Unknown suspect' }, undefined, Math.random, opts);
@@ -296,7 +326,7 @@ async function boot() {
     const up = await storeImage(blob);
     if (!up) return;
     const c = viewport.centerWorld();
-    place(makeItem('photo', c.x, c.y, { imageId: up.imageId }, { w: 260, h: Math.round((260 * up.h) / up.w) + 16 }, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew }));
+    place(makeItem('photo', c.x, c.y, { imageId: up.imageId }, { w: 260, h: Math.round((260 * up.h) / up.w) + 16 }, Math.random, { attach: pickFastener(store.get().surface, prefs.lastFastener), tilt: prefs.tiltNew }));
   }
 
   async function pasteFrom(image: Blob | undefined, text: string) {
@@ -305,7 +335,7 @@ async function boot() {
     if (p.kind === 'item') return pasteItem(p.item, clip?.item.id === p.item.id ? clip.blob : undefined);
     if (p.kind === 'text') {
       const c = viewport.centerWorld();
-      return place(makeItem('sticky', c.x, c.y, { text: p.text.slice(0, 5000) }, undefined, Math.random, { attach: prefs.lastFastener, tilt: prefs.tiltNew }));
+      return place(makeItem('sticky', c.x, c.y, { text: p.text.slice(0, 5000) }, undefined, Math.random, { attach: pickFastener(store.get().surface, prefs.lastFastener), tilt: prefs.tiltNew }));
     }
     toast('Nothing to paste.', 'Copy an item, an image or some text first.');
   }
@@ -346,11 +376,32 @@ async function boot() {
 
   async function newCase() {
     await autosave.flush();
-    const b = newBoard('Untitled case', nextCaseNo());
+    const m = await pickMood($('newcase') as HTMLDialogElement);
+    if (!m) return;
+    const b = { ...newBoard('Untitled case', nextCaseNo()), ...moodPatch(m) };
     try { await db.saveBoard(b); } catch { storageError(); return; }
     metas = await db.listBoards();
     await openBoard(b.id);
     select({ kind: 'board' });
+  }
+
+  async function chooseMusic() {
+    const file = await pickFile('audio/*');
+    if (!file) return;
+    if (file.size > 60 * 1024 * 1024) { toast("That tape's too long.", 'Pick a file under 60 MB.'); return; }
+    if (!(await music.load(file))) { toast("That tape won't play.", 'Try an MP3, M4A or OGG file.'); return; }
+    const musicId = 'music-' + newId();
+    try { await db.putBlob(musicId, file); } catch { music.clear(); storageError(); return; }
+    const old = prefs.musicId;
+    if (old) await db.deleteBlob(old).catch(() => {});
+    setPrefs({ musicId, musicName: file.name.slice(0, 80), musicOn: true });
+  }
+
+  async function removeMusic() {
+    music.clear();
+    const old = prefs.musicId;
+    if (old) await db.deleteBlob(old).catch(() => {});
+    setPrefs({ musicId: undefined, musicName: undefined, musicOn: false });
   }
 
   async function doExport() {
@@ -417,14 +468,27 @@ async function boot() {
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });
 
+  const unlock = () => { ambience.unlock(); music.unlock(); setPrefs({}); };
+  document.addEventListener('pointerdown', unlock, { once: true, capture: true });
+  document.addEventListener('keydown', unlock, { once: true, capture: true });
+
   // First paint
   setPrefs({ lastBoardId: board.id, ...(prefs.lastExportAt ? {} : { lastExportAt: Date.now() }) });
   $('world').dataset.mode = mode;
+  syncLook(board);
   strings.sync(board, true);
   items.sync(board);
   tabs.render();
   refreshDesk();
   viewport.fit();
+
+  if (prefs.musicId) {
+    const blob = await db.getBlob(prefs.musicId).catch(() => undefined);
+    if (!blob || !(await music.load(blob))) {
+      toast("The tape's gone missing.", 'Choose your track again in Settings.');
+      setPrefs({ musicId: undefined, musicName: undefined, musicOn: false });
+    } else setPrefs({});
+  }
 
   if (!db.persistent) toast('No evidence locker.', "This browser won't let us save. Your board lasts until you close the tab — export to keep it.");
   void navigator.storage?.persist?.().catch(() => {});

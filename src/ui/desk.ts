@@ -66,7 +66,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
   const redo = deskBtn('redo', 'Redo', 'Redo', deps.redo);
   undo.classList.add('touch-only'); // keyboards have Ctrl+Z
   redo.classList.add('touch-only');
-  const mute = deskBtn('radio', 'Sound', 'Mute sound effects', deps.toggleMute);
+  const mute = deskBtn('radio', 'Sound', 'Mute all sound', deps.toggleMute);
   mute.setAttribute('aria-pressed', 'false');
 
   el.append(

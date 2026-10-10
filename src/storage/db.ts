@@ -11,6 +11,7 @@ export interface Db {
   deleteBoard(id: string): Promise<void>;
   putBlob(id: string, blob: Blob): Promise<void>;
   getBlob(id: string): Promise<Blob | undefined>;
+  deleteBlob(id: string): Promise<void>;
   clearAll(): Promise<void>;
 }
 
@@ -34,6 +35,7 @@ function idbDb(): Db {
     },
     putBlob: (id, blob) => set(id, blob, blobs),
     getBlob: id => get<Blob>(id, blobs),
+    deleteBlob: id => del(id, blobs),
     async clearAll() { await clear(boards); await clear(blobs); },
   };
 }
@@ -53,6 +55,7 @@ function memoryDb(): Db {
     },
     async putBlob(id, blob) { blobs.set(id, blob); },
     async getBlob(id) { return blobs.get(id); },
+    async deleteBlob(id) { blobs.delete(id); },
     async clearAll() { boards.clear(); blobs.clear(); },
   };
 }

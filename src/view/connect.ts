@@ -1,6 +1,6 @@
 import { connect as connectItems } from '../model/actions';
 import { anchorPoint, toAnchor } from '../model/geometry';
-import type { Anchor } from '../model/types';
+import type { Anchor, StringMaterial } from '../model/types';
 import type { Store } from '../model/store';
 
 type Pt = { x: number; y: number };
@@ -8,10 +8,12 @@ type Pt = { x: number; y: number };
 export interface ConnectDeps {
   store: Store;
   viewport: { toWorld(cx: number, cy: number): Pt; pinching(): boolean };
-  strings: { preview(from: Pt | null, to?: Pt, color?: string, snapped?: boolean): void };
+  strings: { preview(from: Pt | null, to?: Pt, color?: string, snapped?: boolean, thickness?: number): void };
   items: { setConnectFrom(id: string | null): void; setHot(id: string | null): void };
   sfx: { pluck(): void };
   color(): string;
+  material(): StringMaterial;
+  thickness(): number;
   tension(): number;
   freeAnchors(): boolean;
   announce(msg: string): void;
@@ -51,7 +53,7 @@ export function createConnect(d: ConnectDeps): ConnectTool {
     const toId = hit?.dataset.itemId ?? hit?.dataset.pinFor;
     const target = toId && toId !== fromId ? d.store.get().items.find(i => i.id === toId) : undefined;
     const point = target && anchorPoint(target, d.freeAnchors() && !under?.closest('.pin') ? toAnchor(target, p.x, p.y) : undefined);
-    d.strings.preview(anchorPoint(it, at), previewEnd(p, point && { point }), d.color(), !!target);
+    d.strings.preview(anchorPoint(it, at), previewEnd(p, point && { point }), d.color(), !!target, d.thickness());
     d.items.setHot(target?.id ?? null);
   }
   const pendingMove = (ev: PointerEvent) => { if (from && !dragging && !d.viewport.pinching()) showPreview(from, fromAt, ev); };
@@ -61,14 +63,14 @@ export function createConnect(d: ConnectDeps): ConnectTool {
     const it = id ? d.store.get().items.find(i => i.id === id) : undefined;
     if (!it) { d.strings.preview(null); d.items.setHot(null); return; }
     const start = anchorPoint(it, at);
-    d.strings.preview(start, start, d.color()); // zero-length until the pointer moves
+    d.strings.preview(start, start, d.color(), false, d.thickness()); // zero-length until the pointer moves
     if (hasWindow) window.addEventListener('pointermove', pendingMove);
   };
 
   function link(a: string, b: string, aAt?: Anchor, bAt?: Anchor): boolean {
     const board = d.store.get();
     const free = d.freeAnchors();
-    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension(), fromAt: free ? aAt : undefined, toAt: free ? bAt : undefined });
+    const next = connectItems(board, a, b, { color: d.color(), tension: d.tension(), material: d.material(), thickness: d.thickness(), fromAt: free ? aAt : undefined, toAt: free ? bAt : undefined });
     if (next === board) {
       if (a !== b) d.announce('Those two are already connected.');
       return false;

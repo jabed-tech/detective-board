@@ -31,4 +31,11 @@ describe('openDb without IndexedDB', () => {
     expect(await db.listBoards()).toEqual([]);
     expect(await db.getBlob('b')).toBeUndefined();
   });
+  it('deleteBlob removes a blob and tolerates a missing one', async () => {
+    const db = await openDb();
+    await db.putBlob('a', new Blob(['x']));
+    await db.deleteBlob('a');
+    expect(await db.getBlob('a')).toBeUndefined();
+    await expect(db.deleteBlob('missing')).resolves.toBeUndefined();
+  });
 });

@@ -3,7 +3,7 @@ import { createConnect, previewEnd } from './connect';
 import { createStore } from '../model/store';
 import { addItem, makeItem, newBoard } from '../model/actions';
 
-function setup(free = true) {
+function setup(free = true, look: { material?: 'yarn' | 'twine' | 'marker'; thickness?: number } = {}) {
   let b = newBoard('t', 1);
   const a = makeItem('sticky', 500, 500);
   const c = makeItem('sticky', 900, 500);
@@ -18,6 +18,8 @@ function setup(free = true) {
     color: () => '#1f5fae',
     tension: () => 0.4,
     freeAnchors: () => free,
+    material: () => look.material ?? 'yarn',
+    thickness: () => look.thickness ?? 1,
     announce: vi.fn(),
     onModeChange: vi.fn(),
     select: vi.fn(),
@@ -101,5 +103,18 @@ describe('connect tool', () => {
   it('preview snaps to the target point, else follows the pointer', () => {
     expect(previewEnd({ x: 1, y: 2 }, { point: { x: 5, y: 6 } })).toEqual({ x: 5, y: 6 });
     expect(previewEnd({ x: 1, y: 2 })).toEqual({ x: 1, y: 2 });
+  });
+  it('passes the current material and thickness to the new link', () => {
+    const { tool, store, a, c } = setup(true, { material: 'twine', thickness: 1.6 });
+    tool.setMode(true); tool.tap(a.id); tool.tap(c.id);
+    const l = store.get().links[0];
+    expect([l.material, l.thickness]).toEqual(['twine', 1.6]);
+  });
+  it('stores neither key for plain yarn at thickness 1', () => {
+    const { tool, store, a, c } = setup(true, { material: 'yarn', thickness: 1 });
+    tool.setMode(true); tool.tap(a.id); tool.tap(c.id);
+    const l = store.get().links[0];
+    expect('material' in l).toBe(false);
+    expect('thickness' in l).toBe(false);
   });
 });
