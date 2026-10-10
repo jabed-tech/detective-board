@@ -56,7 +56,9 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     const i = items.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'Escape') { closeMenu(); add.focus(); }
     if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); items[i <= 0 ? items.length - 1 : i - 1].focus(); }
+    if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+    if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
     if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const k = e.key.toLowerCase();
       for (let n = 1; n <= items.length; n++) {

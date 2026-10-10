@@ -62,7 +62,7 @@
 .cf-row b { flex: none; min-width: 5.5em; }
 .cf-row span { overflow-wrap: anywhere; }
 .cf-notes { flex: 1; min-height: 0; overflow: hidden; margin-top: calc(8px * var(--k, 1)); font: calc(15px * var(--tk, 1))/1.3 var(--font-ui); overflow-wrap: anywhere; }
-.cf-status { position: absolute; right: 4%; top: 18%; transform: rotate(-12deg); border: 3px solid #b3261e; color: #b3261e; padding: 2px calc(10px * var(--k, 1));
+.cf-status { position: absolute; right: 6%; bottom: 6%; transform: rotate(-12deg); border: 3px solid #b3261e; color: #b3261e; padding: 2px calc(10px * var(--k, 1));
   font: max(18px, calc(20px * var(--k, 1)))/1.2 var(--font-display); text-transform: uppercase; mix-blend-mode: multiply; max-width: 70%; overflow-wrap: anywhere; pointer-events: none; }
 
 /* sketch */

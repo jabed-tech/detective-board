@@ -19,7 +19,11 @@ export function button(text: string, onClick: () => void, cls = 'btn'): HTMLButt
   b.addEventListener('click', onClick);
   return b;
 }
-export function debounce(fn: () => void, ms = 500): () => void {
+export interface Debounced { (): void; cancel(): void; flush(): void }
+export function debounce(fn: () => void, ms = 500): Debounced {
   let t: ReturnType<typeof setTimeout> | undefined;
-  return () => { clearTimeout(t); t = setTimeout(fn, ms); };
+  const d = (() => { clearTimeout(t); t = setTimeout(() => { t = undefined; fn(); }, ms); }) as Debounced;
+  d.cancel = () => { clearTimeout(t); t = undefined; };
+  d.flush = () => { if (t === undefined) return; clearTimeout(t); t = undefined; fn(); };
+  return d;
 }

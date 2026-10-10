@@ -2,7 +2,7 @@ import { OBJECTS, STAMPS, type ItemData, type ObjectId, type ReceiptLine, type S
 import { bringToFront, removeItem, removeLink, reverseLink, updateItem, updateLink } from '../model/actions';
 import { moodPatch } from '../model/surfaces';
 import type { Store } from '../model/store';
-import { button, debounce, field, group, h } from './dom';
+import { button, debounce, type Debounced, field, group, h } from './dom';
 import { scaledGeom, withFit } from '../view/items';
 import { formatMoney, genCaseFile, genMugshot, genNewspaper, genReceipt, newSeed, receiptTotal } from '../model/generators';
 import { openSketchPad } from './sketchpad';
@@ -21,6 +21,11 @@ const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky 
 
 export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?: boolean): void } {
   let shownKey = '';
+  /** Debouncers of the panel on screen; cancelled when the panel is replaced so stale timers can't write. */
+  let pending: Debounced[] = [];
+  const deb = (fn: () => void): Debounced => { const d = debounce(fn); pending.push(d); return d; };
+  const flushAll = () => pending.forEach(d => d.flush());
+  const cancelAll = () => { pending.forEach(d => d.cancel()); pending = []; };
   const commit = (fn: (b: Board) => Board) => deps.store.commit(fn(deps.store.get()));
   /** Update a string, leaving the board untouched (no empty undo step) when nothing would change. */
   const patchLink = (id: string, patch: Partial<Omit<Link, 'id' | 'from' | 'to'>>) => commit(b => {
@@ -96,19 +101,22 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const textRow = (label: string, key: TextKey, max: number): HTMLElement => {
       const inp = h('input', { type: 'text', value: it.data[key] ?? '', maxLength: max });
       const go = () => patchData({ [key]: inp.value });
-      inp.addEventListener('input', debounce(go));
-      inp.addEventListener('change', go);
+      const d = deb(go);
+      inp.addEventListener('input', d);
+      inp.addEventListener('change', () => { d.cancel(); go(); });
       return field(label, inp);
     };
     const areaRow = (label: string, rows: number): HTMLElement => {
       const ta = h('textarea', { value: it.data.text ?? '', rows, maxLength: 5000 });
       const go = () => patchData({ text: ta.value });
-      ta.addEventListener('input', debounce(go));
-      ta.addEventListener('change', go);
+      const d = deb(go);
+      ta.addEventListener('input', d);
+      ta.addEventListener('change', () => { d.cancel(); go(); });
       return field(label, ta);
     };
     /** One commit: re-roll the generated fields (keeps any photo), so Ctrl+Z restores the old text. */
     const reroll = (label: string, gen: (seed: number, now: number) => Partial<ItemData>) => button(label, () => {
+      flushAll();
       const seed = newSeed();
       commit(b => {
         const cur = b.items.find(i => i.id === it.id);
@@ -137,7 +145,8 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
         if (JSON.stringify(next) === JSON.stringify(before)) return b;
         return updateItem(b, it.id, withFit(cur, { ...cur.data, lines: next }, deps.fitHeight));
       });
-      const total = h('p', { className: 'rc-total-ro' }, `Total ${formatMoney(receiptTotal(lines))}`);
+      const live = lines.map(l => ({ ...l }));
+      const total = h('p', { className: 'rc-total-ro' }, `Total ${formatMoney(receiptTotal(live))}`);
       total.setAttribute('aria-live', 'polite');
       const editor = h('div', { className: 'rc-edit' });
       editor.setAttribute('role', 'group');
@@ -147,19 +156,23 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
         name.setAttribute('aria-label', `Item ${i + 1} name`);
         const price = h('input', { type: 'number', min: '0', step: '0.01', value: (l.price / 100).toFixed(2), className: 'rc-ed-price' });
         price.setAttribute('aria-label', `Item ${i + 1} price in pounds`);
-        const pence = () => { const v = Number(price.value); return price.value !== '' && Number.isFinite(v) ? Math.min(999_999, Math.max(0, Math.round(v * 100))) : l.price; };
+        const committed = () => deps.store.get().items.find(x => x.id === it.id)?.data.lines?.[i]?.price ?? live[i].price;
+        const pence = () => { const v = Number(price.value); return price.value !== '' && Number.isFinite(v) ? Math.min(999_999, Math.max(0, Math.round(v * 100))) : committed(); };
         const edit = () => {
           const p = pence();
-          total.textContent = `Total ${formatMoney(receiptTotal(lines.map((x, j) => (j === i ? { name: name.value, price: p } : x))))}`;
+          live[i] = { name: name.value, price: p };
+          total.textContent = `Total ${formatMoney(receiptTotal(live))}`;
           setLines(ls => { if (ls[i]) ls[i] = { name: name.value, price: p }; return ls; });
         };
-        const typing = debounce(edit);
-        for (const inp of [name, price]) { inp.addEventListener('input', typing); inp.addEventListener('change', edit); }
-        const x = button('✕', () => { setLines(ls => ls.filter((_, j) => j !== i)); api.render(true); }, 'btn rc-ed-x');
+        const typing = deb(edit);
+        name.addEventListener('input', typing);
+        price.addEventListener('input', typing);
+        for (const inp of [name, price]) inp.addEventListener('change', () => { typing.cancel(); edit(); if (inp === price) price.value = (live[i].price / 100).toFixed(2); });
+        const x = button('✕', () => { flushAll(); setLines(ls => ls.filter((_, j) => j !== i)); api.render(true); }, 'btn rc-ed-x');
         x.setAttribute('aria-label', `Remove ${l.name || `item ${i + 1}`}`);
         editor.append(h('div', { className: 'rc-edit-row' }, name, price, x));
       });
-      const addLine = button('Add line', () => { setLines(ls => (ls.length >= 40 ? ls : [...ls, { name: 'Item', price: 100 }])); api.render(true); });
+      const addLine = button('Add line', () => { flushAll(); setLines(ls => (ls.length >= 40 ? ls : [...ls, { name: 'Item', price: 100 }])); api.render(true); });
       addLine.disabled = lines.length >= 40;
       out.push(group('Lines', editor), total, h('div', { className: 'row' }, addLine, reroll('New random receipt', genReceipt)), textSizeRow());
     }
@@ -198,13 +211,13 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const looks = [flag('Aged look (yellowed, foxed paper)', 'aged'), flag('Cross it out (red X)', 'crossed')];
     if (it.type === 'sticky' || it.type === 'index') {
       const ta = h('textarea', { value: it.data.text ?? '', rows: 4, maxLength: 5000 });
-      ta.addEventListener('input', debounce(() => patchData({ text: ta.value })));
+      ta.addEventListener('input', deb(() => patchData({ text: ta.value })));
       out.push(field('Writing', ta));
       out.push(textSizeRow());
     }
     if (it.type === 'polaroid') {
       const cap = h('input', { type: 'text', value: it.data.caption ?? '', maxLength: 200 });
-      cap.addEventListener('input', debounce(() => patchData({ caption: cap.value })));
+      cap.addEventListener('input', deb(() => patchData({ caption: cap.value })));
       out.push(field('Caption', cap));
       out.push(textSizeRow());
       out.push(h('div', { className: 'row' }, button(it.data.imageId ? 'Replace photo' : 'Add photo', () => deps.pickPhoto(it.id))));
@@ -301,8 +314,9 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     arrows.dataset.k = 'arrows';
     const label = h('input', { type: 'text', value: l.label ?? '', maxLength: 80 });
     const doLabel = () => patchLink(l.id, { label: label.value.trim() || undefined });
-    label.addEventListener('input', debounce(doLabel));
-    label.addEventListener('change', doLabel);
+    const dl = deb(doLabel);
+    label.addEventListener('input', dl);
+    label.addEventListener('change', () => { dl.cancel(); doLabel(); });
     const out: Node[] = [
       h('h2', { className: 'drawer-title' }, 'String'),
       group('Colour', sw),
@@ -322,8 +336,9 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const name = h('input', { type: 'text', value: b.name, maxLength: 80 });
     const id = b.id; // only ever rename the case this input was built for
     const rename = () => commit(x => { const n = name.value.trim() || 'Untitled case'; return x.id !== id || x.name === n ? x : { ...x, name: n }; });
-    name.addEventListener('input', debounce(rename));
-    name.addEventListener('change', rename);
+    const dn = deb(rename);
+    name.addEventListener('input', dn);
+    name.addEventListener('change', () => { dn.cancel(); rename(); });
     const file = h('input', { type: 'file', accept: '.json,application/json', className: 'visually-hidden', tabIndex: -1 });
     file.addEventListener('change', () => { const f = file.files?.[0]; if (f) deps.importBoard(f); file.value = ''; });
     const moodSel = h('select');
@@ -338,7 +353,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       field('Mood', moodSel),
       field('Board surface', surfSel),
       h('p', { className: 'hint' }, 'Mood sets the light, sound and board. Change the board on its own if you like.'),
-      h('div', { className: 'row' }, b.closed ? button('Reopen the case', () => commit(x => ({ ...x, closed: undefined }))) : button('Close the case', deps.closeCase)),
+      h('div', { className: 'row' }, b.closed ? button('Reopen the case', () => commit(x => { const { closed: _c, ...rest } = x; return rest; })) : button('Close the case', deps.closeCase)),
       h('div', { className: 'row' }, button('Export case file', deps.exportBoard), button('Import case file', () => file.click()), file),
       h('p', { className: 'hint' }, 'A case file is one .json file with the photos inside. Everything stays on this device.'),
       h('div', { className: 'row' }, button('Clear the board', deps.clearBoard), button('Burn this case', deps.deleteCase, 'btn danger')),
@@ -349,10 +364,11 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     render(force = false) {
       const sel = deps.selection();
       const b = deps.store.get();
-      if (sel.kind === 'none') { el.hidden = true; shownKey = ''; return; }
+      if (sel.kind === 'none') { cancelAll(); el.hidden = true; shownKey = ''; return; }
       const key = sel.kind === 'board' ? `board:${b.id}` : `${sel.kind}:${sel.id}`;
       // Don't rebuild under the user's cursor while they edit this same thing.
       if (!force && key === shownKey && el.contains(document.activeElement)) return;
+      cancelAll();
       let parts: Node[];
       if (sel.kind === 'board') parts = boardPanel(b);
       else if (sel.kind === 'item') {

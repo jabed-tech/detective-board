@@ -24,7 +24,7 @@ export function createTabs(el: HTMLElement, deps: TabsDeps): { render(): void } 
       const closed = all.filter(m => m.closed);
       for (const m of open) el.append(tab(m, cur));
       if (closed.length) {
-        const toggle = button(`Archive (${closed.length}) ${archiveOpen ? '▾' : '▸'}`, () => { archiveOpen = !archiveOpen; api.render(); toggle2()?.focus(); }, 'tab tab-archive');
+        const toggle = button(`Archive (${closed.length}) ${archiveOpen ? '▾' : '▸'}`, () => { archiveOpen = !archiveOpen; api.render(); el.querySelector<HTMLElement>('.tab-archive')?.focus(); }, 'tab tab-archive');
         toggle.setAttribute('aria-expanded', String(archiveOpen));
         el.append(toggle);
         for (const m of closed) if (archiveOpen || m.id === cur) el.append(tab(m, cur));
@@ -33,6 +33,5 @@ export function createTabs(el: HTMLElement, deps: TabsDeps): { render(): void } 
       el.querySelector('[aria-current="true"]')?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
     },
   };
-  const toggle2 = () => el.querySelector<HTMLElement>('.tab-archive');
   return api;
 }
