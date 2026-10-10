@@ -10,7 +10,7 @@ import { openSketchPad } from './sketchpad';
 export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; id: string } | { kind: 'link'; id: string };
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
-  exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void; closeCase(): void;
+  exportBoard(): void; exportPicture?(): void; exportItem?(id: string): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void; closeCase(): void;
   pickPhoto(itemId: string): void; fitHeight(id: string, data: Item['data']): number | null; setYarn(c: string): void; setLastFastener(id: FastenerId): void; setLastThickness(v: number): void;
 }
 
@@ -260,6 +260,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     }));
     out.push(field('Size', size));
     out.push(h('p', { className: 'hint' }, 'Tip: drag the corner handle, or press , and . to shrink and grow, or Shift with them (< and >) for text size.'));
+    out.push(h('div', { className: 'row' }, button('Export this item…', () => deps.exportItem?.(it.id))));
     out.push(h('div', { className: 'row' },
       button('Bring to front', () => commit(b => bringToFront(b, it.id))),
       button('Take it down', () => commit(b => removeItem(b, it.id)), 'btn danger')));
@@ -354,7 +355,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       field('Board surface', surfSel),
       h('p', { className: 'hint' }, 'Mood sets the light, sound and board. Change the board on its own if you like.'),
       h('div', { className: 'row' }, b.closed ? button('Reopen the case', () => commit(x => { const { closed: _c, ...rest } = x; return rest; })) : button('Close the case', deps.closeCase)),
-      h('div', { className: 'row' }, button('Export case file', deps.exportBoard), button('Import case file', () => file.click()), file),
+      h('div', { className: 'row' }, button('Export case file', deps.exportBoard), button('Export a picture…', () => deps.exportPicture?.()), button('Import case file', () => file.click()), file),
       h('p', { className: 'hint' }, 'A case file is one .json file with the photos inside. Everything stays on this device.'),
       h('div', { className: 'row' }, button('Clear the board', deps.clearBoard), button('Burn this case', deps.deleteCase, 'btn danger')),
     ];

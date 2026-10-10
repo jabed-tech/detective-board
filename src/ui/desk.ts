@@ -2,7 +2,7 @@ import { OBJECTS, STAMPS, type ItemType, type Mode, type ObjectId, type StampId 
 import { h } from './dom';
 
 export type AddChoice = ItemType | 'unknown' | `stamp:${StampId}` | `object:${ObjectId}`;
-export interface DeskDeps { addItem(c: AddChoice): void; setMode(m: Mode): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openSettings(): void }
+export interface DeskDeps { addItem(c: AddChoice): void; setMode(m: Mode): void; fit(): void; zoom(f: number): void; undo(): void; redo(): void; toggleMute(): void; openCaseFile(): void; openExport(): void; openSettings(): void }
 export interface DeskState { canUndo: boolean; canRedo: boolean; mode: Mode; yarn: string; muted: boolean }
 
 function deskBtn(obj: string, label: string, aria: string, onClick: () => void): HTMLButtonElement {
@@ -100,6 +100,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     deskBtn('glass', 'Fit', 'Fit board to screen', deps.fit),
     zoomOut, zoomIn, undo, redo,
     deskBtn('folder', 'Case', 'Case file: name, export, import', deps.openCaseFile),
+    deskBtn('camera', 'Export', 'Export a picture or PDF', deps.openExport),
     mute,
     deskBtn('match', 'Settings', 'Settings', deps.openSettings),
   );

@@ -38,6 +38,10 @@ import { showMemo } from './ui/memo';
 import { bindKeys } from './ui/keys';
 import { createDemoBoard } from './demo';
 import { toAnchor } from './model/geometry';
+import { fitScale, regionFor, type Scope } from './export/region';
+import { composeBoard } from './export/compose';
+import { canvasToFile, exportName } from './export/save';
+import { openExportDialog, type ExportRequest } from './ui/exportdialog';
 import { offsetCopy, parseClipboardText, serializeItem } from './clipboard';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -140,6 +144,8 @@ async function boot() {
     selection: () => sel,
     close: () => select({ kind: 'none' }),
     exportBoard: () => void doExport(),
+    exportPicture: () => void openExport(),
+    exportItem: id => void openExport('item', id),
     importBoard: f => void doImport(f),
     clearBoard: () => void clearBoard(),
     deleteCase: () => void deleteCase(),
@@ -172,6 +178,7 @@ async function boot() {
     redo: () => store.redo(),
     toggleMute: () => setPrefs({ muted: !prefs.muted }),
     openCaseFile: () => select({ kind: 'board' }),
+    openExport: () => void openExport(),
     openSettings: () => settings.open(),
   });
   function setMode(m: Mode) {
@@ -472,6 +479,68 @@ async function boot() {
     toast('Filed with the Chief.', 'Case exported as a .json file.');
   }
 
+  function exportScope(kind: Scope['kind'], itemId: string | undefined): Scope {
+    if (kind === 'item' && itemId) return { kind: 'item', id: itemId };
+    if (kind === 'view') {
+      const r = $('viewport').getBoundingClientRect();
+      const a = viewport.toWorld(r.left, r.top), z = viewport.toWorld(r.right, r.bottom);
+      return { kind: 'view', rect: { x: a.x, y: a.y, w: z.x - a.x, h: z.y - a.y } };
+    }
+    return { kind: 'board' };
+  }
+
+  let exporting = false;
+  async function openExport(want?: Scope['kind'], itemId?: string) {
+    if (exporting) return;
+    exporting = true;
+    try {
+      const id = itemId ?? (sel.kind === 'item' ? sel.id : undefined);
+      const canShare = !!navigator.canShare?.({ files: [new File([''], 'x.png', { type: 'image/png' })] });
+      const canCopy = 'ClipboardItem' in window && !!navigator.clipboard?.write;
+      const req = await openExportDialog($('exporter') as HTMLDialogElement, {
+        hasSelection: !!id, scope: want, canShare, canCopy,
+        describe: r => {
+          const rect = regionFor(store.get(), exportScope(r.scope.kind, id));
+          if (!rect) return 'Nothing to print.';
+          const s = fitScale(rect, r.scale);
+          const capped = s < r.scale - 1e-9;
+          return `${Math.round(rect.w * s)} × ${Math.round(rect.h * s)} px${capped ? ' · capped to fit this browser' : ''}`;
+        },
+      });
+      if (req) await runExport({ ...req, scope: exportScope(req.scope.kind, id) });
+    } finally { exporting = false; }
+  }
+
+  async function runExport(req: ExportRequest) {
+    const b = store.get();
+    toast('Developing…');
+    try {
+      const region = regionFor(b, req.scope);
+      const canvas = region && await composeBoard(b, { ...req, scale: fitScale(region, req.scale), getBlob: db.getBlob });
+      if (!canvas) { toast('Nothing to print.'); return; }
+      const itemType = req.scope.kind === 'item' ? b.items.find(i => i.id === (req.scope as { id: string }).id)?.type : undefined;
+      const name = exportName(b.caseNo, b.name, req.scope.kind, itemType, req.format);
+      if (req.action === 'copy') {
+        const png = (await canvasToFile(canvas, 'png', req.page, name)).file;
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        toast('Copied to the clipboard.');
+        return;
+      }
+      const { file, fellBack } = await canvasToFile(canvas, req.format, req.page, name);
+      if (fellBack) toast(req.format === 'webp' ? "WebP isn't supported here." : 'Saved as PNG instead.', req.format === 'webp' ? 'Saved as PNG instead.' : undefined);
+      if (req.action === 'share') {
+        try { await navigator.share({ files: [file], title: b.name }); }
+        catch (e) { if ((e as DOMException)?.name !== 'AbortError') throw e; }
+        return;
+      }
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch {
+      toast("The print didn't develop.", 'Try a smaller size or another format.');
+    }
+  }
+
   async function doImport(file: File) {
     const res = parseImport(await file.text());
     if (!res.ok) { const [t, body] = IMPORT_MESSAGES[res.error]; toast(t, body); return; }
@@ -518,7 +587,7 @@ async function boot() {
     location.reload();
   }
 
-  bindKeys({ store, viewport, connect, setMode, clipboardKeys: () => prefs.clipboardKeys, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected(), fitHeight: (id, data) => items.fitHeight(id, data) });
+  bindKeys({ store, viewport, connect, setMode, clipboardKeys: () => prefs.clipboardKeys, selection: () => sel, select, deleteSelected, openExport: () => void openExport(), copy: () => void copySelected(), duplicate: () => void duplicateSelected(), fitHeight: (id, data) => items.fitHeight(id, data) });
 
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });

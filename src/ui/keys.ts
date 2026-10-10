@@ -17,6 +17,7 @@ export interface KeyDeps {
   deleteSelected(): void;
   copy(): void;
   duplicate(): void;
+  openExport(): void;
   fitHeight(id: string, data: ItemData): number | null;
 }
 
@@ -26,6 +27,7 @@ export function bindKeys(d: KeyDeps): void {
     if (t.closest('input, textarea, select, dialog, [role=menu]')) return;
     const k = e.key;
     const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.shiftKey && k.toLowerCase() === 'e') { e.preventDefault(); d.openExport(); return; }
     if (mod && k.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); d.store.undo(); return; }
     if (mod && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); d.store.redo(); return; }
     if (mod && !e.shiftKey && d.clipboardKeys() && d.selection().kind === 'item') {
