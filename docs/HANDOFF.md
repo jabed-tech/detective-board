@@ -11,10 +11,10 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 - Final Opus review → fix wave (`f04d208`): 5 Important fixes, plus user changes: strings snap to main pin by default (Advanced setting "Pin strings where I drop them"), Move/String/**Erase** modes (E key), undo/redo buttons only on touch devices (Ctrl+Z/Ctrl+Y on desktop), copy/paste keyboard-only with a Settings toggle.
 
 ## In flight when we stopped
-- **Task 19** committed (104 tests pass) but NOT browser-checked. Known nits from implementer: hover and string-target highlight share `.hot` (one can clear the other); in Move mode the hot glow overrides the lifted shadow during drag.
+- **Task 19** browser-verified 2026-10-10. **Task 20** (text size) committed + browser-verified. Known nits from implementer: hover and string-target highlight share `.hot` (one can clear the other); in Move mode the hot glow overrides the lifted shadow during drag.
 
 ## Next steps
-1. **Task 20 (text size per item)** brief written 2026-10-10 — dispatch (Sonnet) after Task 19 browser check. Then finish/verify Task 19 in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
+1. (done) Tasks 19–20 verified. Test in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
 2. Browser checks still outstanding: snap-to-pin default in String mode (unit-tested only), touch-only undo/redo, Task 14 step 3 checklist items 6–7 (large photo upload, export → burn → import round trip), reduced-motion.
 3. `/ponytail-review` or a final scoped review of tasks 19 + fix wave.
 4. **Ask the user before publishing:** `gh repo create` (public, account `jabed-tech`), push `phase-1` → merge to `main`, enable Pages (source: GitHub Actions), confirm the URL loads. Note the default branch locally is `master`; the workflow triggers on `main`.
