@@ -521,8 +521,7 @@ async function boot() {
       const itemType = req.scope.kind === 'item' ? b.items.find(i => i.id === (req.scope as { id: string }).id)?.type : undefined;
       const name = exportName(b.caseNo, b.name, req.scope.kind, itemType, req.format);
       if (req.action === 'copy') {
-        const png = (await canvasToFile(canvas, 'png', req.page, name)).file;
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': canvasToFile(canvas, 'png', req.page, name).then(r => r.file) })]);
         toast('Copied to the clipboard.');
         return;
       }
@@ -530,13 +529,18 @@ async function boot() {
       if (fellBack) toast(req.format === 'webp' ? "WebP isn't supported here." : 'Saved as PNG instead.', req.format === 'webp' ? 'Saved as PNG instead.' : undefined);
       if (req.action === 'share') {
         try { await navigator.share({ files: [file], title: b.name }); }
-        catch (e) { if ((e as DOMException)?.name !== 'AbortError') throw e; }
+        catch (e) {
+          const n = (e as DOMException)?.name;
+          if (n === 'NotAllowedError') toast('Sharing timed out.', 'Try a smaller size, or use Download.');
+          else if (n !== 'AbortError') throw e;
+        }
         return;
       }
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    } catch {
+    } catch (e) {
+      console.error(e);
       toast("The print didn't develop.", 'Try a smaller size or another format.');
     }
   }

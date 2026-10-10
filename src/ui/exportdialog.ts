@@ -85,6 +85,7 @@ export function openExportDialog(dialog: HTMLDialogElement, init: ExportInit): P
     refresh();
     const onClose = () => { dialog.removeEventListener('close', onClose); dialog.removeEventListener('click', onBackdrop); resolve(result); };
     const onBackdrop = (e: MouseEvent) => {
+      if (e.target !== dialog || e.detail === 0) return;
       const r = dialog.getBoundingClientRect();
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
     };
