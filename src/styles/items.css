@@ -1,5 +1,6 @@
 .items-layer, .pins-layer { position: absolute; inset: 0; }
-.items-layer { z-index: 2; }
+.items-layer { z-index: 2; pointer-events: none; } /* empty space lets clicks reach strings below */
+.items-layer > .item { pointer-events: auto; }
 .pins-layer { z-index: 4; }
 .pins-layer { pointer-events: none; }
 
