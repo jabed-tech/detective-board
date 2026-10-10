@@ -1,4 +1,4 @@
-import { OBJECTS, STAMPS } from '../model/types';
+import { OBJECTS, SKETCH_VIEW, STAMPS } from '../model/types';
 import type { Item, ItemType } from '../model/types';
 import { objectSvg, stampSvg } from './art';
 import '../styles/content.css';
@@ -109,7 +109,7 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
     case 'sketch': {
       const svg = document.createElementNS(SVG_NS, 'svg');
       svg.setAttribute('class', 'sk');
-      svg.setAttribute('viewBox', '0 0 400 300');
+      svg.setAttribute('viewBox', `0 0 ${SKETCH_VIEW.w} ${SKETCH_VIEW.h}`);
       svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
       for (const s of d.strokes ?? []) {
         const p = document.createElementNS(SVG_NS, 'path');
@@ -121,7 +121,7 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
       break;
     }
     case 'stamp': {
-      const id = d.stamp ?? 'classified';
+      const id = d.stamp ?? 'evidence';
       const wrap = add(body, 'div', `stamp stamp-${id}`);
       if (id === 'red-x' || id === 'coffee-ring') wrap.innerHTML = stampSvg(id); // static art, no user data
       else span(wrap, id === 'question' ? 'stamp-q' : 'stamp-text', STAMPS.find(s => s.id === id)?.label ?? '');
@@ -149,7 +149,7 @@ export function itemLabel(it: Item): string {
     case 'receipt': return join('Receipt', trim(d.store));
     case 'casefile': return join('Case file', trim(d.subject));
     case 'sketch': return 'Sketch';
-    case 'stamp': return join('Stamp', STAMPS.find(s => s.id === d.stamp)?.label ?? '');
+    case 'stamp': return join('Stamp', STAMPS.find(s => s.id === (d.stamp ?? 'evidence'))?.label ?? '');
     case 'object': return join(OBJECTS.find(o => o.id === d.object)?.name ?? NAMES.object, trim(d.caption));
   }
   const t = trim(d.text ?? d.caption);
