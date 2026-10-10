@@ -13,19 +13,26 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
   let on = false;
   let muted = false;
   let unlocked = false;
+  let confirmed = false; // true only once a play() promise has resolved
 
   function revoke(): void {
     if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } url = null; }
   }
   function sync(): void {
     const want = on && !muted && unlocked && loaded;
-    if (want && audio.paused) { try { void Promise.resolve(audio.play()).catch(() => {}); } catch { /* ignore */ } }
-    else if (!want && !audio.paused) audio.pause();
+    if (want && audio.paused) {
+      const my = gen;
+      try {
+        Promise.resolve(audio.play()).then(() => { if (my === gen) confirmed = !audio.paused; }, () => { confirmed = false; });
+      } catch { confirmed = false; }
+    } else if (!want && !audio.paused) { audio.pause(); confirmed = false; }
+    else if (!want) confirmed = false;
   }
 
   return {
     load(blob) {
       audio.pause();
+      confirmed = false;
       revoke();
       loaded = false;
       const my = ++gen;
@@ -56,10 +63,10 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
     setVolume(v) { audio.volume = Math.min(1, Math.max(0, v)); },
     setMuted(m) { muted = m; sync(); },
     unlock() { unlocked = true; sync(); }, // later calls retry a rejected play()
-    settled() { return !(on && !muted && loaded) || !audio.paused; },
+    settled() { return !(on && !muted && loaded) || confirmed; },
     clear() {
       gen++;
-      on = false; loaded = false;
+      on = false; loaded = false; confirmed = false;
       audio.pause();
       revoke();
       audio.src = '';

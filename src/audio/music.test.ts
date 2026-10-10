@@ -8,7 +8,8 @@ function fakeAudio() {
     play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn>; load: ReturnType<typeof vi.fn>;
   };
   a.src = ''; a.loop = false; a.volume = 1; a.paused = true;
-  a.play = vi.fn(async () => { a.paused = false; });
+  // Like a real browser: paused flips false at once; a rejection flips it back later.
+  a.play = vi.fn(() => { a.paused = false; return Promise.resolve(); });
   a.pause = vi.fn(() => { a.paused = true; });
   a.load = vi.fn();
   return a;
@@ -44,12 +45,18 @@ describe('music', () => {
   it('retries play() on a later unlock() after a rejected first attempt', async () => {
     const { a, m } = mk();
     const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
-    a.play.mockImplementationOnce(async () => { throw new Error('NotAllowed'); });
+    a.play.mockImplementationOnce(() => {
+      a.paused = false;
+      return Promise.resolve().then(() => { a.paused = true; throw new Error('NotAllowed'); });
+    });
     m.setOn(true); m.unlock();
-    await Promise.resolve();
-    expect(m.settled()).toBe(false);
+    expect(m.settled()).toBe(false); // play() pending: paused is already false, not yet confirmed
+    await new Promise<void>(r => queueMicrotask(r)); await Promise.resolve();
+    expect(m.settled()).toBe(false); // rejected
     m.unlock();
     expect(a.play).toHaveBeenCalledTimes(2);
+    expect(m.settled()).toBe(false); // second attempt not yet resolved
+    await Promise.resolve(); await Promise.resolve();
     expect(m.settled()).toBe(true);
   });
   it('respects the gesture and mute', async () => {
