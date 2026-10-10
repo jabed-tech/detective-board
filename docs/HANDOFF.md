@@ -1,7 +1,7 @@
 # Handoff — where we left off (2026-10-09)
 
 Branch: `phase-1` (not merged to `master`, not pushed — no GitHub repo created yet).
-Spec: `docs/specs/2026-10-09-detective-board-design.md` · Plan: `docs/plans/phase-1/00-overview.md` + task files 01–19.
+Spec: `docs/specs/2026-10-09-detective-board-design.md` · Plan: `docs/plans/phase-1/00-overview.md` + task files 01–20.
 Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` — full record of tasks, reviews, rulings, deferred minors.
 
 ## Done (all committed on `phase-1`, 102 tests passing, tsc clean, build OK)
@@ -14,7 +14,7 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 - **Task 19** committed (104 tests pass) but NOT browser-checked. Known nits from implementer: hover and string-target highlight share `.hot` (one can clear the other); in Move mode the hot glow overrides the lifted shadow during drag.
 
 ## Next steps
-1. Finish/verify Task 19 in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
+1. **Task 20 (text size per item)** brief written 2026-10-10 — dispatch (Sonnet) after Task 19 browser check. Then finish/verify Task 19 in the browser (test on `http://127.0.0.1:5174` via `npx vite --host 127.0.0.1 --port 5174` so the user's `localhost` data isn't touched).
 2. Browser checks still outstanding: snap-to-pin default in String mode (unit-tested only), touch-only undo/redo, Task 14 step 3 checklist items 6–7 (large photo upload, export → burn → import round trip), reduced-motion.
 3. `/ponytail-review` or a final scoped review of tasks 19 + fix wave.
 4. **Ask the user before publishing:** `gh repo create` (public, account `jabed-tech`), push `phase-1` → merge to `main`, enable Pages (source: GitHub Actions), confirm the URL loads. Note the default branch locally is `master`; the workflow triggers on `main`.
