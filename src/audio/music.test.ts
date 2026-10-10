@@ -59,6 +59,15 @@ describe('music', () => {
     await Promise.resolve(); await Promise.resolve();
     expect(m.settled()).toBe(true);
   });
+  it('is not settled after an external pause', async () => {
+    const { a, m } = mk();
+    const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
+    m.setOn(true); m.unlock();
+    await Promise.resolve(); await Promise.resolve();
+    expect(m.settled()).toBe(true);
+    a.paused = true; // e.g. audio focus lost, headset unplugged
+    expect(m.settled()).toBe(false);
+  });
   it('respects the gesture and mute', async () => {
     const { a, m } = mk();
     const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;

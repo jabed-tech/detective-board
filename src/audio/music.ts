@@ -63,7 +63,7 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
     setVolume(v) { audio.volume = Math.min(1, Math.max(0, v)); },
     setMuted(m) { muted = m; sync(); },
     unlock() { unlocked = true; sync(); }, // later calls retry a rejected play()
-    settled() { return !(on && !muted && loaded) || confirmed; },
+    settled() { return !(on && !muted && loaded) || (confirmed && !audio.paused); },
     clear() {
       gen++;
       on = false; loaded = false; confirmed = false;
