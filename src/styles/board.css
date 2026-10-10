@@ -13,3 +13,48 @@
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");
   background-size: 300px 300px, 900px 900px;
 }
+
+/* Glass: pale blue-grey whiteboard glass, aluminium frame */
+.surface-glass {
+  box-shadow: 0 0 0 26px #9aa3a8, 0 0 0 30px #5f676b, 0 40px 90px 20px rgba(0, 0, 0, .75);
+  background-color: #cfd8dc;
+  background-image:
+    linear-gradient(115deg, rgba(255, 255, 255, .35) 0 8%, transparent 8% 30%, rgba(255, 255, 255, .15) 30% 34%, transparent 34%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .01' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .35 0 0 0 0 .4 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.06'/%3E%3C/svg%3E");
+  background-size: 900px 900px, 900px 900px;
+}
+
+/* Brick: mortar courses over noisy red brick, whitewashed bottom-left */
+.surface-brick {
+  background-color: #8a4b37;
+  background-image:
+    radial-gradient(ellipse at 0% 100%, rgba(240, 232, 220, .45), transparent 55%),
+    repeating-linear-gradient(0deg, transparent 0 66px, rgba(205, 195, 180, .55) 66px 70px),
+    repeating-linear-gradient(90deg, transparent 0 136px, rgba(205, 195, 180, .55) 136px 140px),
+    repeating-linear-gradient(90deg, transparent 0 136px, rgba(205, 195, 180, .55) 136px 140px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .14 0 0 0 0 .08 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 280px 140px, 280px 140px, 280px 140px, 300px 300px;
+  background-position: 0 0, 0 0, 0 0, 140px 70px, 0 0;
+}
+
+/* Wood: alternating vertical panels with grooves and grain */
+.surface-wood {
+  background-color: #6b4a2f;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 396px, rgba(20, 10, 4, .6) 396px 400px),
+    repeating-linear-gradient(90deg, #6b4a2f 0 400px, #5c3f27 400px 800px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .25' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .09 0 0 0 0 .04 0 0 0 .7 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E");
+  background-size: 400px 100%, 800px 100%, 600px 600px;
+}
+
+/* Archive: desaturated sepia cork with a faint water stain */
+.surface-archive {
+  --cork: #b49a73;
+  background-color: var(--cork);
+  background-image:
+    radial-gradient(ellipse 380px 260px at 28% 34%, rgba(90, 60, 30, .14), rgba(90, 60, 30, .08) 55%, transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .18 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .28 0 0 0 0 .22 0 0 0 0 .15 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");
+  background-size: 1400px 1000px, 300px 300px, 900px 900px;
+  background-repeat: repeat, repeat, repeat;
+}

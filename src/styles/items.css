@@ -8,14 +8,14 @@
 .item.lifted { cursor: grabbing; }
 .item-body {
   position: relative; width: 100%; height: 100%; box-sizing: border-box;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .45), 6px 14px 22px -6px rgba(0, 0, 0, .55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .45), calc(var(--sx, 1) * 6px) calc(var(--sy, 1) * 14px) 22px -6px rgba(0, 0, 0, .55);
   transition: transform .12s ease, box-shadow .12s ease;
 }
 .item-body::after { /* paper curl / sheen */
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(135deg, rgba(255, 255, 255, .12), transparent 30%, transparent 75%, rgba(0, 0, 0, .12));
 }
-.item.lifted .item-body { transform: scale(1.04); box-shadow: 0 2px 4px rgba(0, 0, 0, .35), 14px 30px 40px -8px rgba(0, 0, 0, .55); }
+.item.lifted .item-body { transform: scale(1.04); box-shadow: 0 2px 4px rgba(0, 0, 0, .35), calc(var(--sx, 1) * 14px) calc(var(--sy, 1) * 30px) 40px -8px rgba(0, 0, 0, .55); }
 .item:focus-visible .item-body, .item.selected .item-body { outline: 3px dashed var(--focus); outline-offset: 6px; }
 .item.connect-from .item-body { outline: 4px solid var(--focus); outline-offset: 6px; }
 
@@ -67,7 +67,7 @@
   background:
     radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .9) 0 2px, transparent 3px),
     radial-gradient(circle, var(--pin, #c0392b) 55%, color-mix(in srgb, var(--pin, #c0392b) 60%, #000) 100%);
-  box-shadow: 2px 4px 4px rgba(0, 0, 0, .5);
+  box-shadow: calc(var(--sx, 1) * 2px) calc(var(--sy, 1) * 4px) 4px rgba(0, 0, 0, .5);
 }
 
 /* Fasteners: one look per kind, all coloured by --pin. */
@@ -75,14 +75,14 @@
   width: 24px; height: 24px; margin: -12px 0 0 -12px;
   background: radial-gradient(circle, color-mix(in srgb, var(--pin, #c0392b) 55%, #000) 0 2px, transparent 3px),
     radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--pin, #c0392b) 70%, #fff), var(--pin, #c0392b) 70%);
-  box-shadow: 1px 2px 3px rgba(0, 0, 0, .45);
+  box-shadow: calc(var(--sx, 1) * 1px) calc(var(--sy, 1) * 2px) 3px rgba(0, 0, 0, .45);
 }
 .pin[data-kind=tape]::before {
   width: 46px; height: 16px; margin: -8px 0 0 -23px; border-radius: 0;
   background: color-mix(in srgb, var(--pin, #c0392b) 25%, rgba(255, 250, 235, .55));
   transform: rotate(-6deg);
   clip-path: polygon(0 10%, 4% 0, 8% 12%, 12% 0, 100% 0, 96% 25%, 100% 50%, 96% 75%, 100% 100%, 10% 100%, 6% 88%, 3% 100%, 0 85%, 3% 50%);
-  filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, .3));
+  filter: drop-shadow(calc(var(--sx, 1) * 1px) calc(var(--sy, 1) * 2px) 1.5px rgba(0, 0, 0, .3));
   box-shadow: none;
 }
 .pin[data-kind=magnet]::before {
@@ -90,16 +90,22 @@
   background:
     radial-gradient(circle at 30% 25%, rgba(255, 255, 255, .85) 0 3px, transparent 6px),
     radial-gradient(circle, var(--pin, #c0392b) 50%, color-mix(in srgb, var(--pin, #c0392b) 45%, #000) 100%);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .6);
+  box-shadow: calc(var(--sx, 1) * 0px) calc(var(--sy, 1) * 3px) 6px rgba(0, 0, 0, .6);
 }
 .pin[data-kind=clip]::before {
   width: 30px; height: 14px; margin: -7px 0 0 -15px; border-radius: 2px;
   background: linear-gradient(90deg, transparent 40%, var(--pin, #c0392b) 40% 46%, transparent 46%), #1d1d1d;
-  box-shadow: 1px 3px 4px rgba(0, 0, 0, .5);
+  box-shadow: calc(var(--sx, 1) * 1px) calc(var(--sy, 1) * 3px) 4px rgba(0, 0, 0, .5);
 }
 .pin[data-kind=clip]::after {
   content: ''; position: absolute; left: 50%; top: 50%; width: 22px; height: 10px; margin: -17px 0 0 -11px;
   border: 2px solid #c8ccd0; border-bottom: 0; border-radius: 6px 6px 0 0; box-sizing: border-box;
+}
+
+.pin[data-kind=nail]::before {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  background: radial-gradient(circle at 35% 30%, #f2f2f2 0 2px, #9ea3a8 3px, #5d6266 70%);
+  box-shadow: calc(var(--sx, 1) * 2px) calc(var(--sy, 1) * 4px) 3px rgba(0, 0, 0, .55);
 }
 
 .rotate-handle {
@@ -129,7 +135,7 @@
 #world[data-mode="erase"] .item, #world[data-mode="erase"] .str-hit { cursor: crosshair; }
 #world[data-mode="string"] .item { cursor: crosshair; }
 /* Hover / press highlight: shows what the current tool will act on. */
-#world[data-mode="move"] .item.hot .item-body { box-shadow: 0 0 0 3px rgba(255, 210, 63, .55), 0 1px 2px rgba(0, 0, 0, .45), 6px 14px 22px -6px rgba(0, 0, 0, .55); }
+#world[data-mode="move"] .item.hot .item-body { box-shadow: 0 0 0 3px rgba(255, 210, 63, .55), 0 1px 2px rgba(0, 0, 0, .45), calc(var(--sx, 1) * 6px) calc(var(--sy, 1) * 14px) 22px -6px rgba(0, 0, 0, .55); }
 #world[data-mode="erase"] .item.hot .item-body { outline: 3px dashed #c0392b; outline-offset: 4px; }
 #world[data-mode="erase"] .item.hot .item-body::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(192, 57, 43, .12); }
 #world[data-mode="string"] .item.hot .item-body { outline: 2px solid var(--focus); outline-offset: 4px; }
