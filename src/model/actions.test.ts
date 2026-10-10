@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { newId, newBoard, makeItem, addItem, updateItem, removeItem, bringToFront, connect, updateLink, removeLink } from './actions';
+import { newId, newBoard, makeItem, addItem, updateItem, removeItem, bringToFront, connect, updateLink, removeLink, reverseLink } from './actions';
 import { BOARD_W, ITEM_SIZES } from './types';
 
 const rand = () => 0.5;
@@ -121,5 +121,29 @@ describe('links', () => {
     expect(updateLink(b1, id, { tension: 7 }).links[0].tension).toBe(1);
     expect(removeLink(b1, id).links).toHaveLength(0);
     expect(updateLink(b1, 'nope', { tension: 0 })).toBe(b1);
+  });
+  it('stores material only when not yarn', () => {
+    const { b, a, c } = twoItems();
+    expect(connect(b, a.id, c.id, { color: '#b3261e', tension: 0.5, material: 'twine' }).links[0].material).toBe('twine');
+    expect('material' in connect(b, a.id, c.id, { color: '#b3261e', tension: 0.5, material: 'yarn' }).links[0]).toBe(false);
+  });
+  it('stores thickness only when not 1, clamped; arrow when set', () => {
+    const { b, a, c } = twoItems();
+    const mk = (o: object) => connect(b, a.id, c.id, { color: '#b3261e', tension: 0.5, ...o }).links[0];
+    expect('thickness' in mk({ thickness: 1 })).toBe(false);
+    expect(mk({ thickness: 9 }).thickness).toBe(3);
+    expect(mk({ thickness: 0.1 }).thickness).toBe(0.5);
+    expect(mk({ arrow: 'both' }).arrow).toBe('both');
+    expect('arrow' in mk({})).toBe(false);
+  });
+  it('reverseLink swaps ends and anchors; missing id is a no-op', () => {
+    const { b, a, c } = twoItems();
+    const b1 = connect(b, a.id, c.id, { color: '#b3261e', tension: 0.5, fromAt: { u: 0.1, v: 0.2 } });
+    const r = reverseLink(b1, b1.links[0].id).links[0];
+    expect(r.from).toBe(c.id);
+    expect(r.to).toBe(a.id);
+    expect(r.toAt).toEqual({ u: 0.1, v: 0.2 });
+    expect('fromAt' in r).toBe(false);
+    expect(reverseLink(b1, 'nope')).toBe(b1);
   });
 });

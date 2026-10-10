@@ -1,6 +1,7 @@
 import type { Item, ItemType } from '../model/types';
 
-const NAMES: Record<ItemType, string> = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky note', index: 'Index card' };
+const NAMES: Record<ItemType, string> = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky note', index: 'Index card',
+  mugshot: 'Mugshot', newspaper: 'Newspaper clipping', receipt: 'Receipt', casefile: 'Case file', sketch: 'Sketch', stamp: 'Stamp', object: 'Object' };
 
 function add<K extends keyof HTMLElementTagNameMap>(parent: HTMLElement, tag: K, cls: string): HTMLElementTagNameMap[K] {
   const n = document.createElement(tag);

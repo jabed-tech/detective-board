@@ -1,4 +1,4 @@
-import { FASTENERS, type Atmosphere, type FastenerId } from './model/types';
+import { FASTENERS, type Atmosphere, type EffectId, type FastenerId } from './model/types';
 
 export interface Prefs {
   atmosphere: Atmosphere;
@@ -13,13 +13,25 @@ export interface Prefs {
   lastFastener: FastenerId;
   clipboardKeys: boolean;
   freeAnchors: boolean;
+  muted: boolean;
+  ambience: boolean;
+  ambienceVolume: number;
+  musicId?: string;
+  musicName?: string;
+  musicOn: boolean;
+  effects: Record<EffectId, boolean>;
+  lastThickness: number;
 }
+
+export const EFFECT_IDS: EffectId[] = ['blinds', 'rain', 'grain', 'neon', 'dust', 'flicker'];
 
 export const DEFAULT_PREFS: Prefs = {
   atmosphere: 'gentle', sfx: true, volume: 0.4, neatHand: false,
   defaultTension: 0.5, lastExportAt: 0, memoSnoozedAt: 0,
   tiltNew: true, lastFastener: 'pin',
   clipboardKeys: true, freeAnchors: false,
+  muted: false, ambience: false, ambienceVolume: 0.3, musicOn: false, lastThickness: 1,
+  effects: { blinds: true, rain: true, grain: true, neon: true, dust: true, flicker: true },
 };
 
 const KEY = 'detective-board:prefs';
@@ -51,7 +63,19 @@ export function loadPrefs(store: KV | null = local()): Prefs {
     lastFastener: FASTENERS.find(f => f.id === raw.lastFastener)?.id ?? DEFAULT_PREFS.lastFastener,
     clipboardKeys: typeof raw.clipboardKeys === 'boolean' ? raw.clipboardKeys : DEFAULT_PREFS.clipboardKeys,
     freeAnchors: typeof raw.freeAnchors === 'boolean' ? raw.freeAnchors : DEFAULT_PREFS.freeAnchors,
+    muted: typeof raw.muted === 'boolean' ? raw.muted : DEFAULT_PREFS.muted,
+    ambience: typeof raw.ambience === 'boolean' ? raw.ambience : DEFAULT_PREFS.ambience,
+    ambienceVolume: num(raw.ambienceVolume, 0, 1, DEFAULT_PREFS.ambienceVolume),
+    musicOn: typeof raw.musicOn === 'boolean' ? raw.musicOn : DEFAULT_PREFS.musicOn,
+    lastThickness: num(raw.lastThickness, 0.5, 3, DEFAULT_PREFS.lastThickness),
+    effects: { ...DEFAULT_PREFS.effects },
   };
+  if (raw.effects && typeof raw.effects === 'object') {
+    const e = raw.effects as Record<string, unknown>;
+    for (const id of EFFECT_IDS) if (typeof e[id] === 'boolean') p.effects[id] = e[id] as boolean;
+  }
+  if (typeof raw.musicId === 'string' && raw.musicId.length <= 100) p.musicId = raw.musicId;
+  if (typeof raw.musicName === 'string') p.musicName = raw.musicName.slice(0, 80);
   if (typeof raw.lastBoardId === 'string') p.lastBoardId = raw.lastBoardId;
   return p;
 }

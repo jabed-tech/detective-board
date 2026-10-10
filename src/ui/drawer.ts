@@ -13,7 +13,8 @@ export interface DrawerDeps {
 
 const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
 const YARN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Black', 'Purple', 'Orange'];
-const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky note', index: 'Index card' } as const;
+const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky note', index: 'Index card',
+  mugshot: 'Mugshot', newspaper: 'Newspaper clipping', receipt: 'Receipt', casefile: 'Case file', sketch: 'Sketch', stamp: 'Stamp', object: 'Object' } as const;
 
 export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?: boolean): void } {
   let shownKey = '';

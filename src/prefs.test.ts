@@ -50,4 +50,23 @@ describe('prefs', () => {
     expect(loadPrefs(null)).toEqual(DEFAULT_PREFS);
     expect(() => savePrefs(DEFAULT_PREFS, null)).not.toThrow();
   });
+  it('has sound/effect defaults', () => {
+    const p = loadPrefs(fakeStorage());
+    expect(p).toMatchObject({ muted: false, ambience: false, ambienceVolume: 0.3, musicOn: false, lastThickness: 1 });
+    expect(p.effects).toEqual({ blinds: true, rain: true, grain: true, neon: true, dust: true, flicker: true });
+    expect('musicId' in p).toBe(false);
+  });
+  it('validates effects, volume, lastThickness and music name', () => {
+    const p = loadPrefs(fakeStorage(JSON.stringify({
+      effects: { rain: false, bogus: false, dust: 'no' }, ambienceVolume: 7, lastThickness: 9,
+      musicName: 'm'.repeat(200), musicId: 'abc', musicOn: true, muted: true, ambience: true,
+    })));
+    expect(p.effects.rain).toBe(false);
+    expect(p.effects.dust).toBe(true);
+    expect('bogus' in p.effects).toBe(false);
+    expect(p.ambienceVolume).toBe(1);
+    expect(p.lastThickness).toBe(3);
+    expect(p.musicName!.length).toBe(80);
+    expect([p.musicId, p.musicOn, p.muted, p.ambience]).toEqual(['abc', true, true, true]);
+  });
 });

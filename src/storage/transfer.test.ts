@@ -148,3 +148,93 @@ describe('sanitising', () => {
     expect(validateBoard(raw)!.items[1].data.text!.length).toBe(5000);
   });
 });
+
+describe('phase 2+3 fields', () => {
+  const raw = () => JSON.parse(JSON.stringify(sample()));
+  const item = (type: string, data: Record<string, unknown>) => {
+    const r = raw();
+    r.items.push({ ...r.items[0], id: 'n1', type, data });
+    return validateBoard(r)!.items.find(i => i.id === 'n1');
+  };
+  it('keeps known surface/mood, defaults unknown ones', () => {
+    const r = raw();
+    r.surface = 'brick'; r.mood = 'basement';
+    const v = validateBoard(r)!;
+    expect([v.surface, v.mood]).toEqual(['brick', 'basement']);
+    r.surface = 'lava'; r.mood = 42;
+    const w = validateBoard(r)!;
+    expect([w.surface, w.mood]).toEqual(['cork', 'noir-office']);
+    r.surface = 'constructor'; r.mood = '__proto__';
+    const x = validateBoard(r)!;
+    expect([x.surface, x.mood]).toEqual(['cork', 'noir-office']);
+  });
+  it('closed only when true', () => {
+    const r = raw();
+    r.closed = true;
+    expect(validateBoard(r)!.closed).toBe(true);
+    r.closed = 'yes';
+    expect('closed' in validateBoard(r)!).toBe(false);
+  });
+  it('validates link material', () => {
+    const r = raw();
+    r.links[0].material = 'marker';
+    expect(validateBoard(r)!.links[0].material).toBe('marker');
+    r.links[0].material = 'yarn';
+    expect('material' in validateBoard(r)!.links[0]).toBe(false);
+    r.links[0].material = 'rope';
+    expect('material' in validateBoard(r)!.links[0]).toBe(false);
+  });
+  it('keeps mugshot name verbatim, truncated to 80', () => {
+    expect(item('mugshot', { name: '<b>Gary</b>' })!.data.name).toBe('<b>Gary</b>');
+    expect(item('mugshot', { name: 'x'.repeat(200) })!.data.name!.length).toBe(80);
+  });
+  it('drops unknown item types', () => expect(item('bomb', {})).toBeUndefined());
+  it('validates receipt lines', () => {
+    const lines = (l: unknown) => item('receipt', { lines: l })!.data.lines;
+    expect(lines(Array.from({ length: 10000 }, () => ({ name: 'x', price: 1 })))).toHaveLength(40);
+    expect(lines([{ name: 'x', price: NaN }])).toEqual([]);
+    expect(lines([{ name: 'x', price: 12.7 }])![0].price).toBe(13);
+    expect(lines([{ name: 'x', price: -5 }])![0].price).toBe(0);
+    expect(lines([{ name: 'x', price: 5e9 }])![0].price).toBe(999999);
+    expect(lines('nope')).toBeUndefined();
+  });
+  it('validates sketch strokes', () => {
+    const strokes = (s: unknown) => item('sketch', { strokes: s })!.data.strokes!;
+    const ok = { d: 'M1 2 L3 4', color: '#112233', width: 4 };
+    expect(strokes([ok])).toEqual([ok]);
+    expect(strokes([{ ...ok, d: 'M1 2 url(x)' }])).toEqual([]);
+    expect(strokes([{ ...ok, d: 'M' + '1'.repeat(60000) }])).toEqual([]);
+    expect(strokes([{ ...ok, color: 'red' }])[0].color).toBe('#22201a');
+    expect(strokes([{ ...ok, width: 999 }])[0].width).toBe(40);
+    expect(strokes(Array.from({ length: 1000 }, () => ok))).toHaveLength(300);
+    const big = { ...ok, d: 'M' + '1'.repeat(59999) };
+    expect(strokes(Array.from({ length: 20 }, () => big))).toHaveLength(6);
+  });
+  it('defaults stamp and object ids, only on their own types', () => {
+    expect(item('stamp', { stamp: 'nope' })!.data.stamp).toBe('evidence');
+    expect(item('stamp', { stamp: 'red-x' })!.data.stamp).toBe('red-x');
+    expect(item('object', { object: 'nope' })!.data.object).toBe('keys');
+    expect('stamp' in item('sticky', { stamp: 'red-x' })!.data).toBe(false);
+  });
+  it('validates aged, crossed and seed', () => {
+    const d = item('sticky', { aged: true, crossed: true, seed: 3.7 })!.data;
+    expect([d.aged, d.crossed, d.seed]).toEqual([true, true, 3]);
+    const e = item('sticky', { aged: 1, seed: -1 })!.data;
+    expect('aged' in e || 'seed' in e).toBe(false);
+    expect('seed' in item('sticky', { seed: 2 ** 33 })!.data).toBe(false);
+  });
+  it('validates link thickness and arrow', () => {
+    const r = raw();
+    const l = (o: object) => { Object.assign(r.links[0], { thickness: undefined, arrow: undefined }, o); return validateBoard(r)!.links[0]; };
+    expect(l({ thickness: 1.6 }).thickness).toBe(1.6);
+    expect('thickness' in l({ thickness: 1 })).toBe(false);
+    expect(l({ thickness: 0.1 }).thickness).toBe(0.5);
+    expect('thickness' in l({ thickness: 'big' })).toBe(false);
+    expect(l({ arrow: 'both' }).arrow).toBe('both');
+    expect('arrow' in l({ arrow: 'up' })).toBe(false);
+  });
+  it('a phase-1-shaped board round-trips deep-equal', () => {
+    const b = sample();
+    expect(validateBoard(JSON.parse(JSON.stringify(b)))).toEqual(b);
+  });
+});

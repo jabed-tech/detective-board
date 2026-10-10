@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type Anchor, type FastenerId, type Item, type ItemData, type ItemType, type Link } from './types';
+import { BOARD_H, BOARD_W, ITEM_SIZES, PIN_COLORS, type Board, type Anchor, type FastenerId, type Item, type ItemData, type ItemType, type Link, type LinkArrow, type StringMaterial } from './types';
 import { clamp } from './geometry';
 
 export function newId(): string {
@@ -62,14 +62,33 @@ export function bringToFront(b: Board, id: string): Board {
   return updateItem(b, id, { z: top + 1 });
 }
 
-export function connect(b: Board, from: string, to: string, opts: { color: string; tension: number; fromAt?: Anchor; toAt?: Anchor }): Board {
+export function connect(b: Board, from: string, to: string, opts: { color: string; tension: number; fromAt?: Anchor; toAt?: Anchor; material?: StringMaterial; thickness?: number; arrow?: LinkArrow }): Board {
   if (from === to) return b;
   if (!b.items.some(i => i.id === from) || !b.items.some(i => i.id === to)) return b;
   if (b.links.some(l => (l.from === from && l.to === to) || (l.from === to && l.to === from))) return b;
   const link: Link = { id: newId(), from, to, color: opts.color, tension: clamp(opts.tension, 0, 1) };
   if (opts.fromAt) link.fromAt = opts.fromAt;
   if (opts.toAt) link.toAt = opts.toAt;
+  if (opts.material && opts.material !== 'yarn') link.material = opts.material;
+  if (typeof opts.thickness === 'number' && Number.isFinite(opts.thickness)) {
+    const t = clamp(opts.thickness, 0.5, 3);
+    if (t !== 1) link.thickness = t;
+  }
+  if (opts.arrow) link.arrow = opts.arrow;
   return { ...b, links: [...b.links, link] };
+}
+
+/** Swap a string's direction (ends and anchors). */
+export function reverseLink(b: Board, id: string): Board {
+  const idx = b.links.findIndex(l => l.id === id);
+  if (idx < 0) return b;
+  const { from, to, fromAt, toAt, ...rest } = b.links[idx];
+  const next: Link = { ...rest, from: to, to: from };
+  if (toAt) next.fromAt = toAt;
+  if (fromAt) next.toAt = fromAt;
+  const links = b.links.slice();
+  links[idx] = next;
+  return { ...b, links };
 }
 
 export function updateLink(b: Board, id: string, patch: Partial<Omit<Link, 'id' | 'from' | 'to'>>): Board {

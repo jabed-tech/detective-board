@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, FASTENERS, TEXT_SCALE_MAX, TEXT_SCALE_MIN, PIN_COLORS, YARN_COLORS, type Anchor, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
+import { BOARD_H, BOARD_W, FASTENERS, MATERIALS, MOODS, OBJECTS, STAMPS, SURFACES, TEXT_SCALE_MAX, TEXT_SCALE_MIN, PIN_COLORS, YARN_COLORS, type Anchor, type Board, type Item, type ItemType, type Link, type LineStyle, type MoodId, type ReceiptLine, type SketchStroke, type SurfaceId } from '../model/types';
 import { newId } from '../model/actions';
 import { clamp } from '../model/geometry';
 
@@ -14,7 +14,7 @@ export const IMPORT_MESSAGES: Record<ImportError, [string, string]> = {
   'bad-asset': ['A photo in this file is damaged.', 'One of the embedded images is corrupted, so nothing was imported.'],
 };
 
-const ITEM_TYPES = new Set<ItemType>(['photo', 'polaroid', 'sticky', 'index']);
+const ITEM_TYPES = new Set<ItemType>(['photo', 'polaroid', 'sticky', 'index', 'mugshot', 'newspaper', 'receipt', 'casefile', 'sketch', 'stamp', 'object']);
 const STYLES = new Set<LineStyle>(['solid', 'dashed', 'dotted']);
 const HEX = /^#[0-9a-f]{6}$/i;
 const DATA_URL = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/]*={0,2})$/;
@@ -25,6 +25,37 @@ const num = (v: unknown, lo: number, hi: number, d: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : undefined);
 const color = (v: unknown, d: string) => (typeof v === 'string' && HEX.test(v) ? v : d);
+
+const PATH_D = /^[MLQCZmlqcz0-9 .,\-]+$/;
+const MAX_STROKES = 300, MAX_STROKE_D = 60000, MAX_TOTAL_D = 400000, MAX_LINES = 40;
+/** [data key, max length] for plain text fields added in phases 2-3. */
+const TEXT_CAPS: [keyof Item['data'], number][] = [
+  ['name', 80], ['bookingNo', 20], ['masthead', 60], ['date', 40], ['headline', 140],
+  ['store', 60], ['time', 40], ['subject', 80], ['officer', 60], ['status', 40],
+];
+
+function receiptLines(v: unknown): ReceiptLine[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: ReceiptLine[] = [];
+  for (const r of v.slice(0, MAX_LINES)) {
+    if (!isRec(r) || typeof r.name !== 'string' || typeof r.price !== 'number' || !Number.isFinite(r.price)) continue;
+    out.push({ name: r.name.slice(0, 60), price: Math.round(clamp(r.price, 0, 999999)) });
+  }
+  return out;
+}
+
+function sketchStrokes(v: unknown): SketchStroke[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: SketchStroke[] = [];
+  let total = 0;
+  for (const r of v.slice(0, MAX_STROKES)) {
+    if (!isRec(r) || typeof r.d !== 'string' || r.d.length > MAX_STROKE_D || !PATH_D.test(r.d)) continue;
+    if (total + r.d.length > MAX_TOTAL_D) break;
+    total += r.d.length;
+    out.push({ d: r.d, color: color(r.color, '#22201a'), width: num(r.width, 1, 40, 4) });
+  }
+  return out;
+}
 
 function validateItem(raw: unknown): Item | null {
   if (!isRec(raw)) return null;
@@ -46,6 +77,19 @@ function validateItem(raw: unknown): Item | null {
     const ts = clamp(d.textScale, TEXT_SCALE_MIN, TEXT_SCALE_MAX);
     if (ts !== 1) data.textScale = ts;
   }
+  for (const [key, max] of TEXT_CAPS) {
+    const v = str(d[key], max);
+    if (v !== undefined) (data as Record<string, unknown>)[key] = v;
+  }
+  const lines = receiptLines(d.lines);
+  if (lines) data.lines = lines;
+  const strokes = sketchStrokes(d.strokes);
+  if (strokes) data.strokes = strokes;
+  if (type === 'stamp') data.stamp = STAMPS.find(x => x.id === d.stamp)?.id ?? 'evidence';
+  if (type === 'object') data.object = OBJECTS.find(x => x.id === d.object)?.id ?? 'keys';
+  if (d.aged === true) data.aged = true;
+  if (d.crossed === true) data.crossed = true;
+  if (typeof d.seed === 'number' && Number.isFinite(d.seed) && d.seed >= 0 && d.seed < 2 ** 32) data.seed = Math.trunc(d.seed);
   return {
     id, type, w, h,
     x: num(raw.x, 0, BOARD_W - w, 0),
@@ -76,6 +120,12 @@ function validateLink(raw: unknown, ids: Set<string>): Link | null {
   const fromAt = anchor(raw.fromAt), toAt = anchor(raw.toAt);
   if (fromAt) link.fromAt = fromAt;
   if (toAt) link.toAt = toAt;
+  if (MATERIALS.some(m => m.id === raw.material) && raw.material !== 'yarn') link.material = raw.material as Link['material'];
+  if (typeof raw.thickness === 'number' && Number.isFinite(raw.thickness)) {
+    const t = clamp(raw.thickness, 0.5, 3);
+    if (t !== 1) link.thickness = t;
+  }
+  if (raw.arrow === 'end' || raw.arrow === 'both') link.arrow = raw.arrow;
   return link;
 }
 
@@ -93,14 +143,17 @@ export function validateBoard(raw: unknown): Board | null {
     const l = validateLink(r, ids);
     if (l && !linkIds.has(l.id)) { linkIds.add(l.id); links.push(l); }
   }
-  return {
+  const board: Board = {
     id: str(raw.id, 100) || newId(),
     name: str(raw.name, 80)?.trim() || 'Untitled case',
     caseNo: Math.round(num(raw.caseNo, 1, 9999, 1)),
-    surface: 'cork', mood: 'noir-office',
+    surface: typeof raw.surface === 'string' && Object.hasOwn(SURFACES, raw.surface) ? raw.surface as SurfaceId : 'cork',
+    mood: typeof raw.mood === 'string' && Object.hasOwn(MOODS, raw.mood) ? raw.mood as MoodId : 'noir-office',
     items, links, version: 1,
     updatedAt: num(raw.updatedAt, 0, Number.MAX_SAFE_INTEGER, 0),
   };
+  if (raw.closed === true) board.closed = true;
+  return board;
 }
 
 async function blobToDataUrl(b: Blob): Promise<string> {
