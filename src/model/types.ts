@@ -5,7 +5,17 @@ export type FastenerId = 'pin' | 'tack' | 'tape' | 'magnet' | 'clip';
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
 export type Atmosphere = 'full' | 'gentle' | 'off';
 
-export interface ItemData { imageId?: string; text?: string; caption?: string; unknown?: boolean }
+export interface ItemData { imageId?: string; text?: string; caption?: string; unknown?: boolean; textScale?: number }
+
+/** Per-item text size multiplier (absent = 1), on top of the card-size scaling. */
+export const TEXT_SCALE_MIN = 0.5;
+export const TEXT_SCALE_MAX = 3;
+export const TEXT_STEP = 1.15;
+
+/** Step a text scale by `factor`, clamped, rounded to 2 dp. */
+export function stepTextScale(cur: number | undefined, factor: number): number {
+  return Math.round(Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, (cur ?? 1) * factor)) * 100) / 100;
+}
 
 export interface Item {
   id: string; type: ItemType;

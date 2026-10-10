@@ -3,7 +3,7 @@
 .pins-layer { z-index: 4; }
 .pins-layer { pointer-events: none; }
 
-.item { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; outline: none; }
+.item { --tk: calc(var(--k, 1) * var(--ts, 1)); position: absolute; left: 0; top: 0; transform-origin: 50% 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; outline: none; }
 .item.lifted { cursor: grabbing; }
 .item-body {
   position: relative; width: 100%; height: 100%; box-sizing: border-box;
@@ -40,7 +40,7 @@
     radial-gradient(circle at 50% 38%, #3a352f 0 18%, transparent 19%),
     radial-gradient(ellipse 42% 30% at 50% 100%, #3a352f 0 98%, transparent 100%);
 }
-.pol-cap { margin: calc(10px * var(--k, 1)) 0 0; font: calc(26px * var(--k, 1))/1.1 var(--font-hand); color: #1d2a5c; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pol-cap { margin: calc(10px * var(--k, 1)) 0 0; font: calc(26px * var(--tk, 1))/1.1 var(--font-hand); color: #1d2a5c; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .item-sticky .item-body { background: linear-gradient(#f9e98f, #f3dc6b); padding: calc(26px * var(--k, 1)) calc(16px * var(--k, 1)) calc(12px * var(--k, 1)); }
 .item-index .item-body {
@@ -51,8 +51,8 @@
     #fbfaf4;
 }
 .it-text { margin: 0; height: 100%; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; color: #22201a; }
-.item-sticky .it-text { font: calc(26px * var(--k, 1))/1.15 var(--font-hand); }
-.item-index .it-text { font: calc(18px * var(--k, 1))/calc(28px * var(--k, 1)) var(--font-ui); }
+.item-sticky .it-text { font: calc(26px * var(--tk, 1))/1.15 var(--font-hand); }
+.item-index .it-text { font: calc(18px * var(--tk, 1))/calc(28px * var(--tk, 1)) var(--font-ui); }
 
 /* Pins: visual head is world-sized; hit area stays ≥ 44 screen px at any zoom. */
 .pin {

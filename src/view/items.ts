@@ -203,6 +203,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.el.style.width = `${it.w}px`;
     e.el.style.height = `${it.h}px`;
     e.el.style.setProperty('--k', String(it.w / ITEM_SIZES[it.type].w)); // text scales with the card
+    e.el.style.setProperty('--ts', String(it.data.textScale ?? 1));
     place(e, it.x, it.y);
   }
 
@@ -236,6 +237,7 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
     e.el.style.width = `${it.w}px`;
     e.el.style.height = `${it.h}px`;
     e.el.style.setProperty('--k', String(it.w / ITEM_SIZES[it.type].w));
+    e.el.style.setProperty('--ts', String(it.data.textScale ?? 1));
     e.el.style.zIndex = String(it.z);
     e.el.setAttribute('aria-label', itemLabel(it));
     e.pin.style.setProperty('--pin', it.attachColor);

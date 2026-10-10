@@ -1,4 +1,4 @@
-import { BOARD_H, BOARD_W, FASTENERS, PIN_COLORS, YARN_COLORS, type Anchor, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
+import { BOARD_H, BOARD_W, FASTENERS, TEXT_SCALE_MAX, TEXT_SCALE_MIN, PIN_COLORS, YARN_COLORS, type Anchor, type Board, type Item, type ItemType, type Link, type LineStyle } from '../model/types';
 import { newId } from '../model/actions';
 import { clamp } from '../model/geometry';
 
@@ -42,6 +42,10 @@ function validateItem(raw: unknown): Item | null {
   if (text !== undefined) data.text = text;
   if (caption !== undefined) data.caption = caption;
   if (d.unknown === true) data.unknown = true;
+  if (typeof d.textScale === 'number' && Number.isFinite(d.textScale)) {
+    const ts = clamp(d.textScale, TEXT_SCALE_MIN, TEXT_SCALE_MAX);
+    if (ts !== 1) data.textScale = ts;
+  }
   return {
     id, type, w, h,
     x: num(raw.x, 0, BOARD_W - w, 0),

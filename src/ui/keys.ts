@@ -3,7 +3,7 @@ import type { Store } from '../model/store';
 import type { Viewport } from '../view/viewport';
 import type { ConnectTool } from '../view/connect';
 import type { Selection } from './drawer';
-import type { Mode } from '../model/types';
+import { TEXT_STEP, stepTextScale, type Mode } from '../model/types';
 import { scaledGeom } from '../view/items';
 
 export interface KeyDeps {
@@ -55,6 +55,16 @@ export function bindKeys(d: KeyDeps): void {
         if (!it) break;
         const r = it.rot + (k === '[' ? -1 : 1) * (e.shiftKey ? 15 : 5);
         d.store.commit(updateItem(d.store.get(), it.id, { rot: ((r + 540) % 360) - 180 }));
+        break;
+      }
+      case '>': case '<': { // Shift + . / ,  — text size
+        if (sel.kind !== 'item') break;
+        const it = d.store.get().items.find(i => i.id === sel.id);
+        if (!it || it.type === 'photo') break;
+        const ts = stepTextScale(it.data.textScale, k === '>' ? TEXT_STEP : 1 / TEXT_STEP);
+        const data = { ...it.data };
+        if (ts === 1) delete data.textScale; else data.textScale = ts;
+        d.store.commit(updateItem(d.store.get(), it.id, { data }));
         break;
       }
       case '.': case ',': { // '+'/'-' are zoom, so resize uses , and .

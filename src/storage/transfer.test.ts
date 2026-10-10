@@ -120,6 +120,28 @@ describe('sanitising', () => {
     raw.items[0].data.unknown = 'yes';
     expect(validateBoard(raw)!.items[0].data.unknown).toBeUndefined();
   });
+  it('validates data.textScale: finite numbers only, clamped, 1 dropped', () => {
+    const raw = JSON.parse(JSON.stringify(sample()));
+    const ts = (v: unknown) => { raw.items[1].data.textScale = v; return validateBoard(raw)!.items[1].data.textScale; };
+    expect(ts('2')).toBeUndefined();
+    expect(ts(null)).toBeUndefined();
+    expect(ts(NaN)).toBeUndefined();
+    expect(ts(Infinity)).toBeUndefined();
+    expect(ts(10)).toBe(3);
+    expect(ts(0.1)).toBe(0.5);
+    expect(ts(1.5)).toBe(1.5);
+    expect(ts(1)).toBeUndefined();
+  });
+  it('a board without textScale round-trips unchanged; textScale survives export/import and item copy', async () => {
+    const b = sample();
+    expect(validateBoard(JSON.parse(JSON.stringify(b)))!.items.every(i => !('textScale' in i.data))).toBe(true);
+    const scaled = { ...b, items: b.items.map((i, n) => (n === 1 ? { ...i, data: { ...i.data, textScale: 1.75 } } : i)) };
+    const r = parseImport(await (await exportBoard(scaled, getBlob)).text());
+    expect(r.ok && r.board.items[1].data.textScale).toBe(1.75);
+    const { parseClipboardText, serializeItem, offsetCopy } = await import('../clipboard');
+    const pasted = parseClipboardText(serializeItem(offsetCopy(scaled.items[1])));
+    expect(pasted.kind === 'item' && pasted.item.data.textScale).toBe(1.75);
+  });
   it('truncates very long text', () => {
     const raw = JSON.parse(JSON.stringify(sample()));
     raw.items[1].data.text = 'x'.repeat(10000);

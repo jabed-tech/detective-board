@@ -1,4 +1,4 @@
-import { FASTENERS, ITEM_SIZES, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
+import { FASTENERS, ITEM_SIZES, TEXT_STEP, stepTextScale, PIN_COLORS, type FastenerId, YARN_COLORS, type Board, type Item, type LineStyle, type Link } from '../model/types';
 import { bringToFront, removeItem, removeLink, updateItem, updateLink } from '../model/actions';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
@@ -45,15 +45,43 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       const cur = b.items.find(i => i.id === it.id);
       return cur ? updateItem(b, it.id, { data: { ...cur.data, ...patch } }) : b;
     });
+    const textSizeRow = (): HTMLElement => {
+      let scale = it.data.textScale ?? 1;
+      const readout = h('span', { className: 'ts-readout', textContent: `${Math.round(scale * 100)}%` });
+      readout.setAttribute('aria-live', 'polite');
+      const reset = button('Reset', () => setScale(1), 'btn ts-reset');
+      const setScale = (next: number) => {
+        scale = next;
+        readout.textContent = `${Math.round(scale * 100)}%`;
+        reset.hidden = scale === 1;
+        commit(b => {
+          const cur = b.items.find(i => i.id === it.id);
+          if (!cur) return b;
+          const data = { ...cur.data };
+          if (scale === 1) delete data.textScale; else data.textScale = scale;
+          return updateItem(b, it.id, { data });
+        });
+      };
+      reset.hidden = scale === 1;
+      const smaller = button('A−', () => setScale(stepTextScale(scale, 1 / TEXT_STEP)), 'btn ts-step');
+      smaller.setAttribute('aria-label', 'Smaller text');
+      const larger = button('A+', () => setScale(stepTextScale(scale, TEXT_STEP)), 'btn ts-step');
+      larger.setAttribute('aria-label', 'Larger text');
+      for (const b of [smaller, larger]) b.style.cssText = 'min-width:44px;min-height:44px';
+      reset.style.minHeight = '44px';
+      return group('Text size', h('div', { className: 'row' }, smaller, readout, larger, reset));
+    };
     if (it.type === 'sticky' || it.type === 'index') {
       const ta = h('textarea', { value: it.data.text ?? '', rows: 4, maxLength: 5000 });
       ta.addEventListener('input', debounce(() => patchData({ text: ta.value })));
       out.push(field('Writing', ta));
+      out.push(textSizeRow());
     }
     if (it.type === 'polaroid') {
       const cap = h('input', { type: 'text', value: it.data.caption ?? '', maxLength: 200 });
       cap.addEventListener('input', debounce(() => patchData({ caption: cap.value })));
       out.push(field('Caption', cap));
+      out.push(textSizeRow());
       out.push(h('div', { className: 'row' }, button(it.data.imageId ? 'Replace photo' : 'Add photo', () => deps.pickPhoto(it.id))));
       if (!it.data.imageId) {
         const unk = h('input', { type: 'checkbox', checked: !!it.data.unknown });
@@ -90,7 +118,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       return cur ? updateItem(b, it.id, scaledGeom(cur, (Number(size.value) / 100 * ITEM_SIZES[cur.type].w) / cur.w)) : b;
     }));
     out.push(field('Size', size));
-    out.push(h('p', { className: 'hint' }, 'Tip: drag the corner handle, or press , and . to shrink and grow.'));
+    out.push(h('p', { className: 'hint' }, 'Tip: drag the corner handle, or press , and . to shrink and grow, or Shift with them (< and >) for text size.'));
     out.push(h('div', { className: 'row' },
       button('Bring to front', () => commit(b => bringToFront(b, it.id))),
       button('Take it down', () => commit(b => removeItem(b, it.id)), 'btn danger')));
