@@ -385,13 +385,22 @@ async function boot() {
     select({ kind: 'board' });
   }
 
+  /** A failed replacement has already stopped the live player: put the previous track back. */
+  async function restoreTrack() {
+    music.clear();
+    const old = prefs.musicId;
+    const blob = old ? await db.getBlob(old).catch(() => undefined) : undefined;
+    if (blob) await music.load(blob);
+    setPrefs({}); // re-applies on/muted state
+  }
+
   async function chooseMusic() {
     const file = await pickFile('audio/*');
     if (!file) return;
     if (file.size > 60 * 1024 * 1024) { toast("That tape's too long.", 'Pick a file under 60 MB.'); return; }
-    if (!(await music.load(file))) { toast("That tape won't play.", 'Try an MP3, M4A or OGG file.'); return; }
+    if (!(await music.load(file))) { await restoreTrack(); toast("That tape won't play.", 'Try an MP3, M4A or OGG file.'); return; }
     const musicId = 'music-' + newId();
-    try { await db.putBlob(musicId, file); } catch { music.clear(); storageError(); return; }
+    try { await db.putBlob(musicId, file); } catch { await restoreTrack(); storageError(); return; }
     const old = prefs.musicId;
     if (old) await db.deleteBlob(old).catch(() => {});
     setPrefs({ musicId, musicName: file.name.slice(0, 80), musicOn: true });
@@ -468,9 +477,14 @@ async function boot() {
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });
 
-  const unlock = () => { ambience.unlock(); music.unlock(); setPrefs({}); };
-  document.addEventListener('pointerdown', unlock, { once: true, capture: true });
-  document.addEventListener('keydown', unlock, { once: true, capture: true });
+  // Browsers only accept audio start from some gestures (touchend, click, a real key), and a rejected
+  // resume()/play() can be retried, so keep listening until the audio is actually running.
+  const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const;
+  const unlock = () => {
+    ambience.unlock(); music.unlock(); setPrefs({});
+    if (ambience.settled() && music.settled()) for (const t of GESTURES) document.removeEventListener(t, unlock, true);
+  };
+  for (const t of GESTURES) document.addEventListener(t, unlock, { capture: true });
 
   // First paint
   setPrefs({ lastBoardId: board.id, ...(prefs.lastExportAt ? {} : { lastExportAt: Date.now() }) });
@@ -485,6 +499,7 @@ async function boot() {
   if (prefs.musicId) {
     const blob = await db.getBlob(prefs.musicId).catch(() => undefined);
     if (!blob || !(await music.load(blob))) {
+      if (blob) await db.deleteBlob(prefs.musicId).catch(() => {});
       toast("The tape's gone missing.", 'Choose your track again in Settings.');
       setPrefs({ musicId: undefined, musicName: undefined, musicOn: false });
     } else setPrefs({});

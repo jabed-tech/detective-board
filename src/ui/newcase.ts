@@ -23,7 +23,10 @@ export function pickMood(dialog: HTMLDialogElement): Promise<MoodId | null> {
       h('div', { className: 'row' }, button('Cancel', () => dialog.close())),
     );
     const onClose = () => { dialog.removeEventListener('close', onClose); dialog.removeEventListener('click', onBackdrop); resolve(result); };
-    const onBackdrop = (e: MouseEvent) => { if (e.target === dialog) dialog.close(); };
+    const onBackdrop = (e: MouseEvent) => { {
+      const r = dialog.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+    } };
     dialog.addEventListener('close', onClose);
     dialog.addEventListener('click', onBackdrop);
     dialog.showModal();

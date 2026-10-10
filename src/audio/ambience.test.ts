@@ -46,6 +46,19 @@ describe('ambience', () => {
     a.unlock(); expect(make).toHaveBeenCalledTimes(1);
     a.unlock(); expect(make).toHaveBeenCalledTimes(1);
   });
+  it('retries a rejected resume on later unlock() calls and reports settled once running', () => {
+    const f = fakeCtx(); (f.ctx as { state: string }).state = 'suspended';
+    const a = createAmbience(() => f.ctx as unknown as AudioContext);
+    a.setEnabled(true); a.setMood('archive');
+    a.unlock();
+    const first = f.ctx.resume.mock.calls.length;
+    expect(first).toBeGreaterThan(0);
+    expect(a.settled()).toBe(false);
+    a.unlock();
+    expect(f.ctx.resume.mock.calls.length).toBeGreaterThan(first);
+    (f.ctx as { state: string }).state = 'running';
+    expect(a.settled()).toBe(true);
+  });
   it('muting drives the master gain to 0', () => {
     const f = fakeCtx(); const make = vi.fn(() => f.ctx as unknown as AudioContext);
     const a = createAmbience(make);

@@ -20,6 +20,12 @@ const TYPE_NAMES = { photo: 'Photograph', polaroid: 'Polaroid', sticky: 'Sticky 
 export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?: boolean): void } {
   let shownKey = '';
   const commit = (fn: (b: Board) => Board) => deps.store.commit(fn(deps.store.get()));
+  /** Update a string, leaving the board untouched (no empty undo step) when nothing would change. */
+  const patchLink = (id: string, patch: Partial<Omit<Link, 'id' | 'from' | 'to'>>) => commit(b => {
+    const cur = b.links.find(x => x.id === id);
+    if (!cur || Object.entries(patch).every(([k, v]) => (cur as unknown as Record<string, unknown>)[k] === v)) return b;
+    return updateLink(b, id, patch);
+  });
 
   /** Rebuild the open panel (a control changed which other controls show) and keep keyboard focus on it. */
   function rebuild(k: string) {
@@ -138,24 +144,24 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
   }
 
   function linkPanel(l: Link): Node[] {
-    const setColor = (c: string) => { deps.setYarn(c); commit(b => updateLink(b, l.id, { color: c })); };
+    const setColor = (c: string) => { deps.setYarn(c); patchLink(l.id, { color: c }); };
     const sw = swatches(YARN_COLORS, l.color, 'String colour', setColor);
     const custom = h('input', { type: 'color', value: l.color, className: 'swatch-custom', title: 'Custom colour' });
     custom.setAttribute('aria-label', 'Custom colour');
     custom.addEventListener('change', () => { mark(sw, custom.value); setColor(custom.value); });
     sw.append(custom);
     const droop = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(l.tension) });
-    droop.addEventListener('change', () => commit(b => updateLink(b, l.id, { tension: Number(droop.value) })));
+    droop.addEventListener('change', () => patchLink(l.id, { tension: Number(droop.value) }));
     const style = h('select');
     for (const [v, t] of [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']] as [LineStyle, string][]) {
       style.append(h('option', { value: v, textContent: t, selected: (l.style ?? 'solid') === v }));
     }
-    style.addEventListener('change', () => commit(b => updateLink(b, l.id, { style: style.value as LineStyle })));
+    style.addEventListener('change', () => patchLink(l.id, { style: style.value as LineStyle }));
     const material = h('select');
     for (const m of MATERIALS) material.append(h('option', { value: m.id, textContent: m.name, selected: (l.material ?? 'yarn') === m.id }));
     material.addEventListener('change', () => {
       const v = material.value as StringMaterial;
-      commit(b => updateLink(b, l.id, { material: v === 'yarn' ? undefined : v }));
+      patchLink(l.id, { material: v === 'yarn' ? undefined : v });
       rebuild('material');
     });
     material.dataset.k = 'material';
@@ -170,7 +176,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       b.addEventListener('click', () => {
         thick.querySelectorAll('.thick-btn').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
         deps.setLastThickness(t.value);
-        commit(bd => updateLink(bd, l.id, { thickness: t.value === 1 ? undefined : t.value }));
+        patchLink(l.id, { thickness: t.value === 1 ? undefined : t.value });
       });
       thick.append(b);
     }
@@ -179,12 +185,12 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
       arrows.append(h('option', { value: v, textContent: t, selected: (l.arrow ?? '') === v }));
     }
     arrows.addEventListener('change', () => {
-      commit(b => updateLink(b, l.id, { arrow: (arrows.value || undefined) as LinkArrow | undefined }));
+      patchLink(l.id, { arrow: (arrows.value || undefined) as LinkArrow | undefined });
       rebuild('arrows');
     });
     arrows.dataset.k = 'arrows';
     const label = h('input', { type: 'text', value: l.label ?? '', maxLength: 80 });
-    const doLabel = () => commit(b => updateLink(b, l.id, { label: label.value.trim() || undefined }));
+    const doLabel = () => patchLink(l.id, { label: label.value.trim() || undefined });
     label.addEventListener('input', debounce(doLabel));
     label.addEventListener('change', doLabel);
     const out: Node[] = [

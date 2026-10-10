@@ -1,6 +1,6 @@
 export interface Music {
   load(blob: Blob): Promise<boolean>; setOn(on: boolean): void; setVolume(v: number): void;
-  setMuted(m: boolean): void; unlock(): void; clear(): void; playing(): boolean;
+  setMuted(m: boolean): void; unlock(): void; settled(): boolean; clear(): void; playing(): boolean;
 }
 
 /** The user's own track, played from a local object URL. Nothing leaves the device. */
@@ -55,7 +55,8 @@ export function createMusic(makeAudio: () => HTMLAudioElement = () => new Audio(
     setOn(v) { on = v; sync(); },
     setVolume(v) { audio.volume = Math.min(1, Math.max(0, v)); },
     setMuted(m) { muted = m; sync(); },
-    unlock() { unlocked = true; sync(); },
+    unlock() { unlocked = true; sync(); }, // later calls retry a rejected play()
+    settled() { return !(on && !muted && loaded) || !audio.paused; },
     clear() {
       gen++;
       on = false; loaded = false;

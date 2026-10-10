@@ -3,7 +3,7 @@ import { chordNotes, layersFor, nextSirenDelay, progression, rng, walkingBass } 
 import type { Chord } from './jazz';
 
 export interface Ambience {
-  unlock(): void; setMood(id: MoodId): void; setEnabled(on: boolean): void;
+  unlock(): void; settled(): boolean; setMood(id: MoodId): void; setEnabled(on: boolean): void;
   setVolume(v: number): void; setMuted(m: boolean): void; setMusicPlaying(on: boolean): void;
 }
 
@@ -265,7 +265,10 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   }
 
   return {
-    unlock() { if (unlocked) return; unlocked = true; create(); },
+    // Idempotent, but every call after the first retries a rejected resume().
+    unlock() { unlocked = true; if (ctx) { applyLayers(); applyRunState(); } else create(); },
+    // True once nothing more is needed from further gestures (running, or silent on purpose).
+    settled() { return !!ctx && (ctx.state === 'running' || !audible()); },
     setMood(id) { mood = id; applyLayers(); },
     setEnabled(on) { enabled = on; applyMaster(); applyLayers(); applyRunState(); },
     setVolume(v) { volume = v; applyMaster(); applyLayers(); applyRunState(); },

@@ -17,7 +17,8 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
         r.addEventListener('change', () => deps.setPrefs({ atmosphere: v }));
         atm.append(h('label', { className: 'opt' }, r, h('span', {}, h('strong', {}, label), ` — ${desc}`)));
       }
-      const rerender = () => { dialog.close(); tool.open(); };
+      const before = p.musicId;
+      const rerender = () => { if (deps.prefs().musicId !== before) { dialog.close(); tool.open(); } };
       const amb = h('input', { type: 'checkbox', checked: p.ambience });
       amb.addEventListener('change', () => deps.setPrefs({ ambience: amb.checked }));
       const ambVol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(p.ambienceVolume) });

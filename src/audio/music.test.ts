@@ -41,6 +41,17 @@ describe('music', () => {
     const p2 = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p2;
     expect(revoke).toHaveBeenCalledWith('blob:1');
   });
+  it('retries play() on a later unlock() after a rejected first attempt', async () => {
+    const { a, m } = mk();
+    const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
+    a.play.mockImplementationOnce(async () => { throw new Error('NotAllowed'); });
+    m.setOn(true); m.unlock();
+    await Promise.resolve();
+    expect(m.settled()).toBe(false);
+    m.unlock();
+    expect(a.play).toHaveBeenCalledTimes(2);
+    expect(m.settled()).toBe(true);
+  });
   it('respects the gesture and mute', async () => {
     const { a, m } = mk();
     const p = m.load(blob); a.dispatchEvent(new Event('loadedmetadata')); await p;
