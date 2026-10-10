@@ -2,13 +2,13 @@ import { FASTENERS, ITEM_SIZES, TEXT_STEP, stepTextScale, PIN_COLORS, type Faste
 import { bringToFront, removeItem, removeLink, updateItem, updateLink } from '../model/actions';
 import type { Store } from '../model/store';
 import { button, debounce, field, group, h } from './dom';
-import { scaledGeom } from '../view/items';
+import { scaledGeom, withFit } from '../view/items';
 
 export type Selection = { kind: 'none' } | { kind: 'board' } | { kind: 'item'; id: string } | { kind: 'link'; id: string };
 export interface DrawerDeps {
   store: Store; selection(): Selection; close(): void;
   exportBoard(): void; importBoard(f: File): void; clearBoard(): void; deleteCase(): void;
-  pickPhoto(itemId: string): void; setYarn(c: string): void; setLastFastener(id: FastenerId): void;
+  pickPhoto(itemId: string): void; fitHeight(id: string, data: Item['data']): number | null; setYarn(c: string): void; setLastFastener(id: FastenerId): void;
 }
 
 const PIN_NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Purple'];
@@ -43,7 +43,9 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const out: Node[] = [h('h2', { className: 'drawer-title' }, TYPE_NAMES[it.type])];
     const patchData = (patch: Partial<Item['data']>) => commit(b => {
       const cur = b.items.find(i => i.id === it.id);
-      return cur ? updateItem(b, it.id, { data: { ...cur.data, ...patch } }) : b;
+      if (!cur) return b;
+      const data = { ...cur.data, ...patch };
+      return updateItem(b, it.id, 'text' in patch || 'caption' in patch ? withFit(cur, data, deps.fitHeight) : { data });
     });
     const textSizeRow = (): HTMLElement => {
       let scale = it.data.textScale ?? 1;
@@ -59,7 +61,7 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
           if (!cur) return b;
           const data = { ...cur.data };
           if (scale === 1) delete data.textScale; else data.textScale = scale;
-          return updateItem(b, it.id, { data });
+          return updateItem(b, it.id, withFit(cur, data, deps.fitHeight));
         });
       };
       reset.hidden = scale === 1;

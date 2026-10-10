@@ -125,6 +125,7 @@ async function boot() {
     clearBoard: () => void clearBoard(),
     deleteCase: () => void deleteCase(),
     pickPhoto: id => void pickPhoto(id),
+    fitHeight: (id, data) => items.fitHeight(id, data),
     setYarn: c => { yarn = c; refreshDesk(); },
     setLastFastener: id => setPrefs({ lastFastener: id }),
   });
@@ -411,7 +412,7 @@ async function boot() {
     location.reload();
   }
 
-  bindKeys({ store, viewport, connect, setMode, clipboardKeys: () => prefs.clipboardKeys, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected() });
+  bindKeys({ store, viewport, connect, setMode, clipboardKeys: () => prefs.clipboardKeys, selection: () => sel, select, deleteSelected, copy: () => void copySelected(), duplicate: () => void duplicateSelected(), fitHeight: (id, data) => items.fitHeight(id, data) });
 
   addEventListener('pagehide', () => void autosave.flush());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void autosave.flush(); });

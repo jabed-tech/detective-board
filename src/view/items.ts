@@ -6,6 +6,7 @@ import type { Viewport } from './viewport';
 import type { Sfx } from '../audio/sfx';
 import { FASTENERS } from '../model/types';
 import { itemLabel, renderItemContent } from './renderers';
+import type { ItemData } from '../model/types';
 
 type Pt = { x: number; y: number };
 const MIN_SIZE = 80;
@@ -28,6 +29,18 @@ export function scaledGeom(it: Item, f: number): Pick<Item, 'x' | 'y' | 'w' | 'h
   return { x, y, w, h };
 }
 
+/** Grow/shrink to height h keeping the rotated top-left corner fixed; width unchanged. */
+export function growHeight(it: Item, h: number): Pick<Item, 'x' | 'y' | 'h'> {
+  const { x, y } = sized(it, it.w, h);
+  return { x, y, h };
+}
+
+/** Patch for updateItem: the new data plus, when the text no longer fits, the grown height (one undo step). */
+export function withFit(it: Item, data: ItemData, fit: (id: string, data: ItemData) => number | null): Partial<Item> {
+  const h2 = fit(it.id, data);
+  return { data, ...(h2 ? growHeight(it, h2) : {}) };
+}
+
 export interface ItemsDeps {
   store: Store;
   viewport: Pick<Viewport, 'el' | 'get' | 'pinching' | 'toWorld' | 'onChange'>;
@@ -41,7 +54,7 @@ export interface ItemsDeps {
   onErase(id: string): void;
   onStringPointerDown(id: string, e: PointerEvent): void;
 }
-export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; setHot(id: string | null): void; refreshHandles(): void }
+export interface ItemsView { sync(board: Board): void; select(id: string | null): void; markFresh(id: string): void; setConnectFrom(id: string | null): void; setHot(id: string | null): void; refreshHandles(): void; fitHeight(id: string, data: ItemData): number | null }
 
 interface Entry { el: HTMLElement; body: HTMLElement; pin: HTMLButtonElement; key: string; item: Item }
 interface AnchorPin { el: HTMLElement; itemId: string; at: Anchor }
@@ -343,7 +356,35 @@ export function createItems(layer: HTMLElement, pinsLayer: HTMLElement, deps: It
   deps.viewport.el.addEventListener('viewport:pinch', () => { erasing = null; if (drag) endDrag(drag.pointerId, true); });
   deps.viewport.onChange(refreshHandle); // handle offset depends on zoom
 
+  function fitHeight(id: string, data: ItemData): number | null {
+    const it = deps.store.get().items.find(i => i.id === id);
+    if (!it || it.type === 'photo') return null;
+    const el = document.createElement('div');
+    el.className = `item item-${it.type}`;
+    el.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;width:${it.w}px;height:${it.h}px`;
+    el.style.setProperty('--k', String(it.w / ITEM_SIZES[it.type].w));
+    el.style.setProperty('--ts', String(data.textScale ?? 1));
+    const body = document.createElement('div');
+    body.className = 'item-body';
+    el.append(body);
+    renderItemContent(body, { ...it, data });
+    layer.append(el);
+    let need = it.h;
+    if (it.type === 'polaroid') {
+      const cap = body.querySelector<HTMLElement>('.pol-cap');
+      const k = it.w / ITEM_SIZES.polaroid.w;
+      if (cap) need = Math.ceil(cap.offsetTop + cap.offsetHeight + 8 * k);
+    } else {
+      const t = body.querySelector<HTMLElement>('.it-text');
+      if (t) need = it.h + Math.ceil(t.scrollHeight - t.clientHeight);
+    }
+    el.remove();
+    need = Math.min(MAX_SIZE, need);
+    return need > it.h ? need : null;
+  }
+
   return {
+    fitHeight,
     sync(board) {
       const seen = new Set<string>();
       for (const it of board.items) {

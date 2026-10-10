@@ -34,14 +34,14 @@
 .ph-frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: #222; }
 
 .item-polaroid .item-body { background: #fbf8ef; padding: calc(14px * var(--k, 1)) calc(14px * var(--k, 1)) 0; }
-.pol-window { position: relative; height: calc(100% - calc(64px * var(--k, 1))); overflow: hidden; background: #1d1a17; }
+.pol-window { position: relative; height: calc(226px * var(--k, 1)); /* from width, so the caption area can grow */ overflow: hidden; background: #1d1a17; }
 .pol-unknown { position: absolute; inset: 0; display: grid; place-items: center; font: max(72px, calc(96px * var(--k, 1))) / 1 var(--font-display); color: #f4eedd; text-shadow: 1px 2px 3px rgba(0, 0, 0, .7); pointer-events: none; }
 .pol-silhouette { position: absolute; inset: 0;
   background:
     radial-gradient(circle at 50% 38%, #3a352f 0 18%, transparent 19%),
     radial-gradient(ellipse 42% 30% at 50% 100%, #3a352f 0 98%, transparent 100%);
 }
-.pol-cap { margin: calc(10px * var(--k, 1)) 0 0; font: calc(26px * var(--tk, 1))/1.1 var(--font-hand); color: #1d2a5c; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pol-cap { margin: calc(10px * var(--k, 1)) 0 0; font: calc(26px * var(--tk, 1))/1.1 var(--font-hand); color: #1d2a5c; text-align: center; white-space: normal; overflow-wrap: anywhere; }
 
 .item-sticky .item-body { background: linear-gradient(#f9e98f, #f3dc6b); padding: calc(26px * var(--k, 1)) calc(16px * var(--k, 1)) calc(12px * var(--k, 1)); }
 .item-index .item-body {

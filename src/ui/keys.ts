@@ -3,8 +3,8 @@ import type { Store } from '../model/store';
 import type { Viewport } from '../view/viewport';
 import type { ConnectTool } from '../view/connect';
 import type { Selection } from './drawer';
-import { TEXT_STEP, stepTextScale, type Mode } from '../model/types';
-import { scaledGeom } from '../view/items';
+import { TEXT_STEP, stepTextScale, type Mode, type ItemData } from '../model/types';
+import { scaledGeom, withFit } from '../view/items';
 
 export interface KeyDeps {
   store: Store;
@@ -17,6 +17,7 @@ export interface KeyDeps {
   deleteSelected(): void;
   copy(): void;
   duplicate(): void;
+  fitHeight(id: string, data: ItemData): number | null;
 }
 
 export function bindKeys(d: KeyDeps): void {
@@ -64,7 +65,7 @@ export function bindKeys(d: KeyDeps): void {
         const ts = stepTextScale(it.data.textScale, k === '>' ? TEXT_STEP : 1 / TEXT_STEP);
         const data = { ...it.data };
         if (ts === 1) delete data.textScale; else data.textScale = ts;
-        d.store.commit(updateItem(d.store.get(), it.id, { data }));
+        d.store.commit(updateItem(d.store.get(), it.id, withFit(it, data, d.fitHeight)));
         break;
       }
       case '.': case ',': { // '+'/'-' are zoom, so resize uses , and .
