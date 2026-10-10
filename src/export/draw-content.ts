@@ -2,7 +2,7 @@ import { SKETCH_VIEW, STAMPS } from '../model/types';
 import { formatMoney, receiptTotal } from '../model/generators';
 import { objectSvg, stampSvg } from '../view/art';
 import { clearShadow, displayFont, drawCover, handFont, scales, setShadow, uiFont } from './draw-core';
-import { drawers } from './registry';
+import { drawers, shapes } from './registry';
 import { svgImage } from './svg-image';
 import { wrapLines } from './text';
 
@@ -158,6 +158,8 @@ drawers.newspaper = async (ctx, it) => {
 
 const RECEIPT_CLIP: [number, number][] = [[0, 0], [100, 0], [100, 97]];
 for (let x = 95; x >= 0; x -= 5) RECEIPT_CLIP.push([x, (x / 5) % 2 === 1 ? 100 : 97]);
+shapes.newspaper = (ctx, it) => polygon(ctx, it.w, it.h, NEWS_CLIP);
+shapes.receipt = (ctx, it) => polygon(ctx, it.w, it.h, RECEIPT_CLIP);
 
 drawers.receipt = async (ctx, it) => {
   const { w, h } = it;

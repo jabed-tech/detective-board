@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { composeBoard } from './compose';
+import { drawers } from './registry';
 import type { Board, Item } from '../model/types';
 
 // Smoke test with a permissive recording context: checks the pipeline runs end to end without throwing.
@@ -52,5 +53,66 @@ describe('composeBoard', () => {
     const c = await composeBoard(b, { scope: { kind: 'item', id: 'a' }, scale: 1, mood: false, strings: true, background: false, getBlob: async () => undefined });
     expect(c).not.toBeNull();
     spy.mockRestore();
+  });
+
+  const opts = (getBlob: (id: string) => Promise<Blob | undefined>) =>
+    ({ scope: { kind: 'board' } as const, scale: 0.05, mood: false, strings: false, background: false, getBlob });
+
+  it('copes with a missing blob', async () => {
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
+    const c = await composeBoard(b, opts(async () => undefined));
+    expect(c).not.toBeNull();
+    spy.mockRestore();
+  });
+
+  it('draws nothing and does not throw for a stamp whose SVG will not decode', async () => {
+    const calls: string[] = [];
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx(calls) as never);
+    vi.stubGlobal('Image', class { onerror?: () => void; set src(_v: string) { setTimeout(() => this.onerror?.(), 0); } });
+    const bad: Board = { ...b, items: [item({ id: 's', type: 'stamp', w: 260, h: 100, data: { stamp: 'coffee-ring' } })], links: [] };
+    const c = await composeBoard(bad, opts(async () => undefined));
+    expect(c).not.toBeNull();
+    expect(calls.filter(k => k === 'drawImage')).toHaveLength(0);
+    spy.mockRestore();
+    vi.stubGlobal('Image', class { onload?: () => void; set src(_v: string) { setTimeout(() => this.onload?.(), 0); } });
+  });
+
+  it('a throwing drawer leaves later items drawn and save/restore balanced', async () => {
+    const calls: string[] = [];
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx(calls) as never);
+    const orig = { photo: drawers.photo, sticky: drawers.sticky };
+    drawers.photo = async () => { throw new Error('boom'); };
+    let later = 0;
+    drawers.sticky = async () => { later++; };
+    const two: Board = { ...b, links: [], items: [item({ id: 'p1', type: 'photo', z: 1 }), item({ id: 's1', type: 'sticky', z: 2 })] };
+    const c = await composeBoard(two, opts(async () => undefined));
+    drawers.photo = orig.photo; drawers.sticky = orig.sticky;
+    spy.mockRestore();
+    expect(c).not.toBeNull();
+    expect(later).toBe(1);
+    expect(calls.filter(k => k === 'save').length).toBe(calls.filter(k => k === 'restore').length);
+  });
+
+  it('caps the size and reports the scale used; rejects non-finite scale', async () => {
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
+    const c = await composeBoard({ ...b, items: [], links: [] }, { ...opts(async () => undefined), scale: 5 });
+    expect(c!.width * c!.height).toBeLessThanOrEqual(16_777_216);
+    expect(Number(c!.dataset.scale)).toBeLessThan(5);
+    expect(await composeBoard(b, { ...opts(async () => undefined), scale: NaN })).toBeNull();
+    spy.mockRestore();
+  });
+
+  it('closes cached bitmaps, even when the export throws', async () => {
+    const close = vi.fn();
+    vi.stubGlobal('createImageBitmap', async () => ({ width: 10, height: 10, close }));
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
+    const orig = drawers.photo;
+    drawers.photo = async (_c, it, img) => { await img(it.data.imageId!); throw new Error('boom'); };
+    const one: Board = { ...b, links: [], items: [item({ id: 'p1', type: 'photo', data: { imageId: 'i' } })] };
+    await composeBoard(one, opts(async () => new Blob(['x'])));
+    await new Promise(r => setTimeout(r, 0));
+    drawers.photo = orig;
+    spy.mockRestore();
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });

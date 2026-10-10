@@ -15,9 +15,9 @@ export function svgImage(markup: string): Promise<HTMLImageElement> {
   if (!p) {
     p = new Promise<HTMLImageElement>((res, rej) => {
       const im = new Image();
-      im.onload = () => res(im);
-      im.onerror = () => rej(new Error('svg decode failed'));
-      setTimeout(() => rej(new Error('svg decode timeout')), 8000);
+      const t = setTimeout(() => rej(new Error('svg decode timeout')), 8000);
+      im.onload = () => { clearTimeout(t); res(im); };
+      im.onerror = () => { clearTimeout(t); rej(new Error('svg decode failed')); };
       im.src = svgDataUrl(markup);
     });
     p.catch(() => cache.delete(markup));

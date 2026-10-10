@@ -8,3 +8,6 @@ export type ItemDrawer = (ctx: CanvasRenderingContext2D, it: Item, img: (id: str
 
 /** T11 registers photo/polaroid/sticky/index (draw-core.ts); T12 registers the rest. */
 export const drawers: Partial<Record<ItemType, ItemDrawer>> = {};
+
+/** Optional outline path builder (card-local coords) for types that clip to a non-rectangular shape; used for the drop shadow. */
+export const shapes: Partial<Record<ItemType, (ctx: CanvasRenderingContext2D, it: Item) => void>> = {};
