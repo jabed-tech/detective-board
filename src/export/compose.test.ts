@@ -115,4 +115,18 @@ describe('composeBoard', () => {
     spy.mockRestore();
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  it('draws strings after the items (strings drape over items, as on screen)', async () => {
+    const calls: string[] = [];
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx(calls) as never);
+    const orig = drawers.sticky;
+    drawers.sticky = async () => { calls.push('ITEM'); };
+    const two: Board = { ...b, items: [item({ id: 'a', z: 1 }), item({ id: 'p', x: 500, z: 2 })],
+      links: [{ id: 'l', from: 'a', to: 'p', color: '#b3261e', tension: 0.5 }] };
+    await composeBoard(two, { ...opts(async () => undefined), strings: true });
+    drawers.sticky = orig;
+    spy.mockRestore();
+    expect(calls.filter(k => k === 'ITEM')).toHaveLength(2);
+    expect(calls.indexOf('setLineDash')).toBeGreaterThan(calls.lastIndexOf('ITEM'));
+  });
 });

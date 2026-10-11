@@ -99,8 +99,6 @@ async function paint(ctx: CanvasRenderingContext2D, b: Board, o: ComposeOpts, r:
 
   if (o.background || o.scope.kind !== 'item') drawBackground(ctx, r, b.surface);
 
-  if (o.strings) drawStrings(ctx, b, r, o.scope.kind === 'item', sx, sy);
-
   const scopeId = o.scope.kind === 'item' ? o.scope.id : null;
   const shown = sortedByZ(b.items).filter(it => scopeId === null || it.id === scopeId);
   let redX: HTMLImageElement | null | undefined;
@@ -141,6 +139,9 @@ async function paint(ctx: CanvasRenderingContext2D, b: Board, o: ComposeOpts, r:
       ctx.restore();
     }
   }
+
+  // On screen the strings drape over the items, with the pins on top of both.
+  if (o.strings) drawStrings(ctx, b, r, o.scope.kind === 'item', sx, sy);
 
   for (const it of shown) drawPin(ctx, it, sx, sy);
 
