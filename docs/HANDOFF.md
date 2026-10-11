@@ -37,3 +37,7 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 - Toolchain resolved newer than planned (TypeScript 7, Vite 8, Vitest 5) — kept; all green.
 - Rope: ITERATIONS=40, gravity scaled 0.02+0.98·tension so taut strings look straight.
 - Deferred minors (see ledger) were triaged by the final review as not blocking publish; large (~48 MP) photo decode can crash older iPhones → phase 5.
+
+## 2026-10-11 — phases 2+3 review done
+- Final whole-branch review: 0 Critical, 5 Important, all fixed (bbabf16..53408a2) with 5 minors. 245 tests, tsc, build clean. Fix diff re-reviewed; browser spot-check on 5174 (focus ring on receipt/newspaper, motel/basement lighting) OK.
+- **Resume here:** user decides merge of `phase-2-3` (local only). Deferred minors are in the ledger. Still unchecked: hearing ambience/music, real touch devices, reduced-motion emulation, starter sample cases per mood (later).
