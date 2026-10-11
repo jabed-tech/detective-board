@@ -516,7 +516,7 @@ async function boot() {
     toast('Developing…');
     try {
       const region = regionFor(b, req.scope);
-      const canvas = region && await composeBoard(b, { ...req, scale: fitScale(region, req.scale), getBlob: db.getBlob });
+      const canvas = region && await composeBoard(b, { ...req, effects: prefs.effects, scale: fitScale(region, req.scale), getBlob: db.getBlob });
       if (!canvas) { toast('Nothing to print.'); return; }
       const itemType = req.scope.kind === 'item' ? b.items.find(i => i.id === (req.scope as { id: string }).id)?.type : undefined;
       const name = exportName(b.caseNo, b.name, req.scope.kind, itemType, req.format);

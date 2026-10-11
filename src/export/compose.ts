@@ -1,4 +1,4 @@
-import { MOODS, type Board, type Item, type LightId } from '../model/types';
+import { MOODS, type Board, type EffectId, type Item, type LightId } from '../model/types';
 import { rng } from '../model/random';
 import { stampSvg } from '../view/art';
 import { hashSeed } from '../view/linePaths';
@@ -13,6 +13,8 @@ import { drawStrings } from './stringsdraw';
 
 export interface ComposeOpts {
   scope: Scope; scale: number; mood: boolean; strings: boolean; background: boolean;
+  /** Effect toggles from the user's prefs; effects switched off are not baked in. */
+  effects?: Partial<Record<EffectId, boolean>>;
   getBlob(id: string): Promise<Blob | undefined>;
 }
 
@@ -145,5 +147,5 @@ async function paint(ctx: CanvasRenderingContext2D, b: Board, o: ComposeOpts, r:
 
   for (const it of shown) drawPin(ctx, it, sx, sy);
 
-  if (o.mood) drawMood(ctx, r, b.mood);
+  if (o.mood) drawMood(ctx, r, b.mood, o.effects);
 }

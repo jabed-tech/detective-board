@@ -1,8 +1,8 @@
-import { MOODS, type MoodId, type SurfaceId } from '../model/types';
+import { MOODS, type EffectId, type MoodId, type SurfaceId } from '../model/types';
 import { rng } from '../model/random';
 import type { Rect } from './region';
 
-const BASE: Record<SurfaceId, string> = { cork: '#b98a5a', glass: '#cfd8dc', brick: '#8a4b37', wood: '#6b4a2f', archive: '#b49a73' };
+const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#9a5640', wood: '#8a6240', archive: '#b49a73' };
 
 function noiseTile(seed: number, alphaLo: number, alphaHi: number): HTMLCanvasElement | null {
   const c = document.createElement('canvas');
@@ -78,7 +78,8 @@ function multiply(ctx: CanvasRenderingContext2D, r: Rect, color: string): void {
 }
 
 /** Mood baked in: light pool, tint, static effects (grain, blinds), vignette. Mirrors mood.css. */
-export function drawMood(ctx: CanvasRenderingContext2D, r: Rect, mood: MoodId): void {
+/** `effects` is the user's per-effect toggles; an effect that is off on screen is not baked in. Omitted = all on. */
+export function drawMood(ctx: CanvasRenderingContext2D, r: Rect, mood: MoodId, effects?: Partial<Record<EffectId, boolean>>): void {
   const def = MOODS[mood];
   if (!def) return;
   const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -108,7 +109,7 @@ export function drawMood(ctx: CanvasRenderingContext2D, r: Rect, mood: MoodId): 
       [[0, 'rgba(255,230,180,.08)'], [0.5, dark + '0)'], [1, dark + '.24)']]);
   }
 
-  if (def.effects.includes('grain')) {
+  if (def.effects.includes('grain') && effects?.grain !== false) {
     const tile = noiseTile(4242, 255, 255);
     const pat = tile && ctx.createPattern(tile, 'repeat');
     if (pat) {
@@ -117,7 +118,7 @@ export function drawMood(ctx: CanvasRenderingContext2D, r: Rect, mood: MoodId): 
       ctx.restore();
     }
   }
-  if (def.effects.includes('blinds')) {
+  if (def.effects.includes('blinds') && effects?.blinds !== false) {
     ctx.save();
     clipTo(ctx, r);
     ctx.translate(cx, cy); ctx.rotate((-10 * Math.PI) / 180);

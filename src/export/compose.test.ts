@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { composeBoard } from './compose';
+import { drawMood } from './backdrop';
 import { drawers } from './registry';
 import type { Board, Item } from '../model/types';
 
@@ -128,5 +129,19 @@ describe('composeBoard', () => {
     spy.mockRestore();
     expect(calls.filter(k => k === 'ITEM')).toHaveLength(2);
     expect(calls.indexOf('setLineDash')).toBeGreaterThan(calls.lastIndexOf('ITEM'));
+  });
+
+  it('does not bake in blinds or grain the user switched off', () => {
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
+    const rect = { x: 0, y: 0, w: 1000, h: 800 };
+    const count = (mood: 'noir-office' | 'basement', effects?: Record<string, boolean>) => {
+      const calls: string[] = [];
+      drawMood(fakeCtx(calls), rect, mood, effects);
+      return calls.filter(k => k === 'fillRect').length;
+    };
+    expect(count('noir-office', { blinds: false })).toBeLessThan(count('noir-office'));
+    expect(count('noir-office', { blinds: true })).toBe(count('noir-office'));
+    expect(count('basement', { grain: false })).toBeLessThan(count('basement'));
+    spy.mockRestore();
   });
 });
