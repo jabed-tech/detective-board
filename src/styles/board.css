@@ -24,16 +24,12 @@
   background-size: 900px 900px, 900px 900px;
 }
 
-/* Brick: running-bond mortar courses over noisy red brick, whitewashed bottom-left */
+/* Brick: a close-up of the wall — big running-bond bricks (tile from view/brickTile.ts), whitewashed bottom-left */
 .surface-brick {
-  background-color: #9a5640;
-  background-image:
-    radial-gradient(ellipse at 0% 100%, rgba(240, 232, 220, .45), transparent 55%),
-    repeating-linear-gradient(0deg, transparent 0 66px, rgba(205, 195, 180, .55) 66px 70px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='140'%3E%3Cg fill='%23cdc3b4' fill-opacity='.55'%3E%3Crect x='0' y='0' width='4' height='70'/%3E%3Crect x='140' y='0' width='4' height='70'/%3E%3Crect x='70' y='70' width='4' height='70'/%3E%3Crect x='210' y='70' width='4' height='70'/%3E%3C/g%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .14 0 0 0 0 .08 0 0 0 .4 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 100% 100%, 280px 140px, 280px 140px, 300px 300px;
-  background-position: 0 0, 0 0, 0 0, 0 0;
+  background-color: #b3a794;
+  background-image: radial-gradient(ellipse at 0% 100%, rgba(240, 232, 220, .45), transparent 55%), var(--brick-tile, none);
+  background-size: 100% 100%, 1260px 780px;
+  background-repeat: no-repeat, repeat;
 }
 
 /* Wood: alternating vertical panels with grooves and grain */

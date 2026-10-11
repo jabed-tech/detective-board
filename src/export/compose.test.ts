@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { composeBoard } from './compose';
-import { drawMood } from './backdrop';
+import { drawBackground, drawMood } from './backdrop';
+import { BRICK_TONES } from '../view/brickTile';
 import { drawers } from './registry';
 import type { Board, Item } from '../model/types';
 
@@ -129,6 +130,48 @@ describe('composeBoard', () => {
     spy.mockRestore();
     expect(calls.filter(k => k === 'ITEM')).toHaveLength(2);
     expect(calls.indexOf('setLineDash')).toBeGreaterThan(calls.lastIndexOf('ITEM'));
+  });
+
+  it('brick board: draws the tile pattern when the tile decodes, falls back to plain colour when it does not', () => {
+    const rect = { x: 0, y: 0, w: 1000, h: 800 };
+    const run = (tiles?: { brick?: CanvasImageSource | null }) => {
+      const patterns: unknown[] = [];
+      const fills: unknown[] = [];
+      const props: Record<string, unknown> = {};
+      const ctx = new Proxy({}, {
+        get(_t, k: string) {
+          if (k === 'createPattern') return (img: unknown) => { patterns.push(img); return { pat: true }; };
+          if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop() {} });
+          if (k === 'createImageData') return (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) });
+          if (k === 'fillRect') return () => { fills.push(props.fillStyle); };
+          if (k in props) return props[k];
+          return () => undefined;
+        },
+        set(_t, k: string, v) { props[k] = v; return true; },
+      }) as unknown as CanvasRenderingContext2D;
+      const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ctx as never);
+      drawBackground(ctx, rect, 'brick', tiles);
+      spy.mockRestore();
+      return { patterns, fills };
+    };
+    const tile = { tile: true } as unknown as CanvasImageSource;
+    const a = run({ brick: tile });
+    expect(a.patterns).toContain(tile);
+    const bad = run({ brick: null });
+    expect(bad.patterns).toHaveLength(0);
+    expect(bad.fills).toContain(BRICK_TONES[0]);
+    expect(() => run()).not.toThrow();
+  });
+
+  it('composeBoard on a brick board still succeeds when the tile image fails to decode', async () => {
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
+    vi.stubGlobal('Image', class { onerror?: () => void; set src(_v: string) { setTimeout(() => this.onerror?.(), 0); } });
+    vi.resetModules();   // svgImage caches by markup; start from a cold cache so the failing decode is really hit
+    const { composeBoard: fresh } = await import('./compose');
+    const c = await fresh({ ...b, items: [], links: [] }, { ...opts(async () => undefined), background: true });
+    spy.mockRestore();
+    vi.stubGlobal('Image', class { onload?: () => void; set src(_v: string) { setTimeout(() => this.onload?.(), 0); } });
+    expect(c).not.toBeNull();
   });
 
   it('does not bake in blinds or grain the user switched off', () => {

@@ -1,8 +1,9 @@
 import { MOODS, type EffectId, type MoodId, type SurfaceId } from '../model/types';
 import { rng } from '../model/random';
+import { BRICK_TONES } from '../view/brickTile';
 import type { Rect } from './region';
 
-const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#9a5640', wood: '#9a6d47', archive: '#b49a73' };
+const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#b3a794', wood: '#9a6d47', archive: '#b49a73' };
 
 function noiseTile(seed: number, alphaLo: number, alphaHi: number): HTMLCanvasElement | null {
   const c = document.createElement('canvas');
@@ -25,23 +26,17 @@ function clipTo(ctx: CanvasRenderingContext2D, r: Rect): void {
 }
 
 /** Surface colour + noise + brick/wood lines, over the region. */
-export function drawBackground(ctx: CanvasRenderingContext2D, r: Rect, surface: SurfaceId): void {
+export function drawBackground(ctx: CanvasRenderingContext2D, r: Rect, surface: SurfaceId, tiles: { brick?: CanvasImageSource | null } = {}): void {
   ctx.fillStyle = BASE[surface] ?? BASE.cork;
   ctx.fillRect(r.x, r.y, r.w, r.h);
 
   ctx.save();
   clipTo(ctx, r);
   if (surface === 'brick') {
-    ctx.strokeStyle = 'rgba(40,30,26,.55)'; ctx.lineWidth = 4;
-    const bh = 60, bw = 160;
-    ctx.beginPath();
-    for (let row = Math.floor(r.y / bh); row * bh < r.y + r.h; row++) {
-      const y = row * bh;
-      ctx.moveTo(r.x, y); ctx.lineTo(r.x + r.w, y);
-      const off = row % 2 ? bw / 2 : 0;
-      for (let x = Math.floor((r.x - off) / bw) * bw + off; x < r.x + r.w; x += bw) { ctx.moveTo(x, y); ctx.lineTo(x, y + bh); }
-    }
-    ctx.stroke();
+    const pat = tiles.brick ? ctx.createPattern(tiles.brick, 'repeat') : null;
+    if (pat) { ctx.fillStyle = pat; ctx.fillRect(r.x, r.y, r.w, r.h); }   // pattern anchored at world 0,0 like the CSS tile
+    else { ctx.fillStyle = BRICK_TONES[0]; ctx.fillRect(r.x, r.y, r.w, r.h); }  // decode failed: plain brick
+    glowWhitewash(ctx, r);
   } else if (surface === 'wood') {
     ctx.strokeStyle = 'rgba(20,12,6,.5)'; ctx.lineWidth = 3;
     ctx.beginPath();
@@ -52,9 +47,11 @@ export function drawBackground(ctx: CanvasRenderingContext2D, r: Rect, surface: 
     for (let x = Math.floor(r.x / 220) * 220 + 4; x < r.x + r.w; x += 220) { ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); }
     ctx.stroke();
   }
-  const tile = noiseTile(surface.length * 977 + 13, 10, 30);
-  const pat = tile && ctx.createPattern(tile, 'repeat');
-  if (pat) { ctx.fillStyle = pat; ctx.fillRect(r.x, r.y, r.w, r.h); }
+  if (surface !== 'brick') {   // the brick tile already carries its own noise
+    const tile = noiseTile(surface.length * 977 + 13, 10, 30);
+    const npat = tile && ctx.createPattern(tile, 'repeat');
+    if (npat) { ctx.fillStyle = npat; ctx.fillRect(r.x, r.y, r.w, r.h); }
+  }
   ctx.restore();
 }
 
@@ -68,6 +65,11 @@ function glow(ctx: CanvasRenderingContext2D, r: Rect, cx: number, cy: number, rx
   ctx.fillStyle = g;
   ctx.fillRect(-1e4, -1e4, 2e4, 2e4);
   ctx.restore();
+}
+
+/** Whitewash pooling bottom-left of the 4000 x 3000 board; matches the CSS `ellipse at 0% 100%`. */
+function glowWhitewash(ctx: CanvasRenderingContext2D, r: Rect): void {
+  glow(ctx, r, 0, 3000, 4000 * 0.55 * 1.414, 3000 * 0.55 * 1.414, [[0, 'rgba(240,232,220,.45)'], [1, 'rgba(240,232,220,0)']]);
 }
 
 function multiply(ctx: CanvasRenderingContext2D, r: Rect, color: string): void {

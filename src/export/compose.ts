@@ -9,6 +9,7 @@ import { drawPin } from './pins';
 import { fitScale, regionFor, type Rect, type Scope } from './region';
 import { drawers, shapes } from './registry';
 import { svgImage } from './svg-image';
+import { brickTileSvg } from '../view/brickTile';
 import { drawStrings } from './stringsdraw';
 
 export interface ComposeOpts {
@@ -99,7 +100,8 @@ async function paint(ctx: CanvasRenderingContext2D, b: Board, o: ComposeOpts, r:
   const light = MOODS[b.mood]?.light ?? 'lamp';
   const [sx, sy] = SHADOW[light];
 
-  if (o.background || o.scope.kind !== 'item') drawBackground(ctx, r, b.surface);
+  const brick = b.surface === 'brick' ? await svgImage(brickTileSvg()).catch(() => null) : null;
+  if (o.background || o.scope.kind !== 'item') drawBackground(ctx, r, b.surface, { brick });
 
   const scopeId = o.scope.kind === 'item' ? o.scope.id : null;
   const shown = sortedByZ(b.items).filter(it => scopeId === null || it.id === scopeId);
