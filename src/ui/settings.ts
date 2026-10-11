@@ -67,20 +67,25 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
         h('label', { className: 'opt' }, musicOn, 'Play my track'),
         h('p', { className: 'hint' }, 'Your track stays on this device and is never uploaded or exported.'),
       );
+      // Wide, column layout with Close pinned at the top: nothing to scroll past to get out.
+      const close = button('Close ✕', () => dialog.close());
+      close.setAttribute('aria-label', 'Close settings');
+      dialog.classList.add('settings');
       dialog.replaceChildren(
-        h('h2', {}, 'Settings'),
-        atm,
-        sound,
-        eff,
-        h('label', { className: 'opt' }, neat, 'Neat handwriting (easier to read)'),
-        h('label', { className: 'opt' }, tilt, 'Tilt new items slightly (more natural look)'),
-        h('label', { className: 'opt' }, clipKeys, 'Copy & paste shortcuts (Ctrl/⌘+C, V, D)'),
-        field('New string droop', droop),
-        h('h3', {}, 'Advanced'),
-        h('label', { className: 'opt' }, freeAnchors, 'Pin strings where I drop them'),
-        h('p', { className: 'hint' }, 'Everything stays on this device. Nothing is uploaded, ever.'),
-        usage,
-        h('div', { className: 'row' }, button('Burn the files', () => { dialog.close(); deps.burnAll(); }, 'btn danger'), button('Close', () => dialog.close())),
+        h('div', { className: 'settings-head' }, h('h2', {}, 'Settings'), close),
+        h('div', { className: 'settings-grid' },
+          h('div', { className: 'settings-col' }, atm, eff),
+          h('div', { className: 'settings-col' }, sound),
+          h('div', { className: 'settings-col' },
+            h('label', { className: 'opt' }, neat, 'Neat handwriting (easier to read)'),
+            h('label', { className: 'opt' }, tilt, 'Tilt new items slightly (more natural look)'),
+            h('label', { className: 'opt' }, clipKeys, 'Copy & paste shortcuts (Ctrl/⌘+C, V, D)'),
+            field('New string droop', droop),
+            h('h3', {}, 'Advanced'),
+            h('label', { className: 'opt' }, freeAnchors, 'Pin strings where I drop them'),
+            h('p', { className: 'hint' }, 'Everything stays on this device. Nothing is uploaded, ever.'),
+            usage,
+            h('div', { className: 'row' }, button('Burn the files', () => { dialog.close(); deps.burnAll(); }, 'btn danger')))),
       );
       dialog.showModal();
     },
