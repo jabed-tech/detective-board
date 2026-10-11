@@ -41,3 +41,9 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 ## 2026-10-11 — phases 2+3 review done
 - Final whole-branch review: 0 Critical, 5 Important, all fixed (bbabf16..53408a2) with 5 minors. 245 tests, tsc, build clean. Fix diff re-reviewed; browser spot-check on 5174 (focus ring on receipt/newspaper, motel/basement lighting) OK.
 - **Resume here:** user decides merge of `phase-2-3` (local only). Deferred minors are in the ledger. Still unchecked: hearing ambience/music, real touch devices, reduced-motion emulation, starter sample cases per mood (later).
+
+## 2026-10-11 — phase 2b built (branch `phase-2b`, not merged)
+- Spec `docs/specs/2026-10-11-phase-2b-design.md`, plan `docs/plans/phase-2b/`. Close-up brick (user asked for +60% after: 650×186 bricks), frame themed per mood (`src/view/themes.ts`), Precinct = acrylic panel, one ambience sound per mood + quieter default, rare muffled phone/voice "incidents" layer.
+- 282 tests, tsc, build clean. Per-task reviews + final Opus review + fix wave done; browser-checked on 5174.
+- **Resume here:** (1) user decides merge of `phase-2b` → `master` (local only); (2) recorded clips: user stopped the download step — `CLIPS` in `src/audio/incidents.ts` is empty so the layer is silent. Shortlist (9 Freesound CC0 clips) is in the conversation/ledger; ask how they want to source/convert (no ffmpeg installed).
+- Deferred minors in `.superpowers/sdd/phase-2b/progress.md` (unused --accent, flat frame textures, micro-scratches, a few untested hard-coded muted colours).
