@@ -6,15 +6,20 @@ export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
-export function pinPoint(it: Pick<Item, 'x' | 'y' | 'w' | 'h' | 'rot'>): { x: number; y: number } {
+/** Tape straddles the top edge (inset 0) so it visibly joins item to board; every other fastener sits PIN_INSET inside. */
+export function fastenerInset(kind?: string): number {
+  return kind === 'tape' ? 0 : PIN_INSET;
+}
+
+export function pinPoint(it: Pick<Item, 'x' | 'y' | 'w' | 'h' | 'rot'> & { attach?: string }): { x: number; y: number } {
   const cx = it.x + it.w / 2;
   const cy = it.y + it.h / 2;
-  const ly = -it.h / 2 + PIN_INSET; // local x is 0
+  const ly = -it.h / 2 + fastenerInset(it.attach); // local x is 0
   const r = (it.rot * Math.PI) / 180;
   return { x: cx - ly * Math.sin(r), y: cy + ly * Math.cos(r) };
 }
 
-type Box = Pick<Item, 'x' | 'y' | 'w' | 'h' | 'rot'>;
+type Box = Pick<Item, 'x' | 'y' | 'w' | 'h' | 'rot'> & { attach?: string };
 
 export function anchorPoint(it: Box, at?: Anchor): { x: number; y: number } {
   if (!at) return pinPoint(it);

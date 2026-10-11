@@ -15,6 +15,24 @@ describe('pinPoint', () => {
   });
 });
 
+describe('tape fastener', () => {
+  it('lies on the top edge, rotated with the item', () => {
+    expect(pinPoint({ ...base, attach: 'tape' })).toEqual({ x: 200, y: 200 });
+    const p = pinPoint({ ...base, rot: 90, attach: 'tape' });
+    expect(p.x).toBeCloseTo(250);
+    expect(p.y).toBeCloseTo(250);
+  });
+  it('other kinds stay PIN_INSET inside', () => {
+    for (const attach of ['pin', 'tack', 'magnet', 'clip', 'nail']) {
+      expect(pinPoint({ ...base, attach })).toEqual({ x: 200, y: 200 + PIN_INSET });
+    }
+  });
+  it('strings default to the tape centre', () => {
+    const it = { ...base, rot: 37, attach: 'tape' };
+    expect(anchorPoint(it)).toEqual(pinPoint(it));
+  });
+});
+
 describe('clamp', () => {
   it('clamps', () => {
     expect(clamp(5, 0, 3)).toBe(3);

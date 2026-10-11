@@ -21,9 +21,9 @@ export function drawPin(ctx: CanvasRenderingContext2D, it: Item, sx: number, sy:
       break;
     case 'tape':
       ctx.rotate((-6 * Math.PI) / 180);
-      ctx.fillStyle = 'rgba(240,232,210,.7)'; ctx.fillRect(-23, -8, 46, 16);
+      ctx.fillStyle = 'rgba(240,232,210,.7)'; ctx.fillRect(-35, -12, 70, 24);
       clearShadow(ctx);
-      ctx.fillStyle = col; ctx.globalAlpha = 0.25; ctx.fillRect(-23, -8, 46, 16);
+      ctx.fillStyle = col; ctx.globalAlpha = 0.25; ctx.fillRect(-35, -12, 70, 24);
       break;
     case 'magnet':
       ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();

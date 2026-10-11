@@ -78,7 +78,7 @@
   box-shadow: calc(var(--sx, 1) * 1px) calc(var(--sy, 1) * 2px) 3px rgba(0, 0, 0, .45);
 }
 .pin[data-kind=tape]::before {
-  width: 46px; height: 16px; margin: -8px 0 0 -23px; border-radius: 0;
+  width: 70px; height: 24px; margin: -12px 0 0 -35px; border-radius: 0; /* centred on the item's top edge: half on the item, half on the board */
   background: color-mix(in srgb, var(--pin, #c0392b) 25%, rgba(255, 250, 235, .55));
   transform: rotate(-6deg);
   clip-path: polygon(0 10%, 4% 0, 8% 12%, 12% 0, 100% 0, 96% 25%, 100% 50%, 96% 75%, 100% 100%, 10% 100%, 6% 88%, 3% 100%, 0 85%, 3% 50%);
@@ -129,6 +129,7 @@
 .fastener { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; }
 .fastener[aria-checked=true] { outline: 3px solid var(--focus); }
 .fastener .pin { position: relative; margin: 0; width: 48px; height: 30px; pointer-events: none; cursor: inherit; }
+.fastener .pin[data-kind=tape]::before { width: 46px; height: 16px; margin: -8px 0 0 -23px; }
 
 /* Move / String modes */
 #world[data-mode="move"] .pin, #world[data-mode="erase"] .pin { pointer-events: none; }
