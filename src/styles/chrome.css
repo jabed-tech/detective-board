@@ -122,11 +122,15 @@ dialog.newcase { width: min(92vw, 680px); max-height: 90dvh; overflow: auto; }
 .tab-closed[aria-current="true"] { background: var(--tab-current-bg); color: var(--tab-ink); }
 .tab-stamp { position: absolute; top: 2px; right: 4px; font: 700 11px var(--font-ui); letter-spacing: .08em; color: #8f1d14; background: #f1e6c6; border: 1px solid #8f1d14; padding: 0 3px; border-radius: 2px; transform: rotate(6deg); } /* badge 7.2:1 */
 
-/* Grouped Add menu */
-.desk-menu { max-height: min(70vh, 560px); overflow-y: auto; }
-.menu-group { display: flex; flex-direction: column; }
-.menu-head { font: 700 11px var(--font-ui); text-transform: uppercase; font-variant: small-caps; letter-spacing: .12em; color: #5a4a33; padding: 8px 12px 2px; }
-@media (min-width: 640px) { .desk-menu { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; width: 440px; align-items: start; } .desk-menu[hidden] { display: none; } }
+/* Add menu: group tabs over a single list */
+.desk-menu { width: min(560px, calc(100vw - 16px)); min-width: min(520px, calc(100vw - 16px)); box-sizing: border-box; max-height: calc(100vh - 100px); overflow-y: auto; }
+.menu-tabs { display: flex; flex-wrap: nowrap; gap: 4px; margin-bottom: 6px; }
+@media (max-width: 480px) { .menu-tabs { overflow-x: auto; scrollbar-width: none; } .desk-menu .menu-tab { flex: 0 0 auto; } }
+.desk-menu .menu-tab { flex: 1 1 auto; min-height: 44px; padding: 6px 10px; font-size: 14px; text-align: center; background: var(--btn-bg); border: 1px solid var(--btn-border); border-radius: 3px; color: var(--ink); }
+.desk-menu .menu-tab[aria-selected="true"] { background: var(--paper); box-shadow: inset 0 -3px 0 var(--ink); font-weight: 700; }
+.desk-menu .menu-tab:hover:not([aria-selected="true"]) { background: var(--btn-hover); }
+.menu-list { display: flex; flex-direction: column; }
+.menu-list button { width: 100%; min-height: 44px; }
 
 /* Receipt lines editor */
 .rc-edit { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
@@ -152,3 +156,12 @@ dialog [hidden] { display: none !important; }
 
 /* The room around the board follows the mood too. */
 .room .viewport { background: var(--room-bg); }
+
+/* Put-away cases */
+.tab-wrap { position: relative; flex: 0 0 auto; display: flex; }
+.tab-wrap .tab { padding-right: 30px; }
+.tab-away { position: absolute; top: 0; right: 0; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--tab-ink); font-size: 16px; line-height: 1; border-radius: 0 8px 0 4px; opacity: 0; }
+.tab-wrap:hover .tab-away, .tab-away:focus-visible { opacity: 1; }
+.tab-away:hover { background: var(--btn-hover); }
+@media (pointer: coarse) { .tab-away { opacity: 1; width: 44px; height: 44px; } .tab-wrap .tab { padding-right: 44px; } }
+.tab-awaytoggle { background: transparent; color: var(--tab-new-ink); border: 1px solid var(--btn-border); border-bottom: 0; justify-content: center; font-size: 13px; }

@@ -153,6 +153,7 @@ export function validateBoard(raw: unknown): Board | null {
     updatedAt: num(raw.updatedAt, 0, Number.MAX_SAFE_INTEGER, 0),
   };
   if (raw.closed === true) board.closed = true;
+  if (raw.away === true) board.away = true;
   return board;
 }
 

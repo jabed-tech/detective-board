@@ -14,9 +14,12 @@ function deskBtn(obj: string, label: string, aria: string, onClick: () => void):
   return b;
 }
 
+let lastGroup = 0; // kept for the session
+
 export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskState): void } {
   const menu = h('div', { className: 'desk-menu', hidden: true });
-  menu.setAttribute('role', 'menu');
+  menu.setAttribute('role', 'dialog');
+  menu.setAttribute('aria-label', 'Add evidence');
   const add = deskBtn('tin', 'Add', 'Add evidence', () => {
     menu.hidden = !menu.hidden;
     add.setAttribute('aria-expanded', String(!menu.hidden));
@@ -24,7 +27,7 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     const r = add.getBoundingClientRect();
     menu.style.bottom = `${innerHeight - r.top + 8}px`;
     menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8))}px`;
-    menu.querySelector<HTMLElement>('[role=menuitem]')!.focus();
+    panel.querySelector<HTMLElement>('[role=menuitem]')!.focus();
   });
   add.setAttribute('aria-haspopup', 'menu');
   add.setAttribute('aria-expanded', 'false');
@@ -36,27 +39,51 @@ export function createDesk(el: HTMLElement, deps: DeskDeps): { update(s: DeskSta
     ['Stamps', STAMPS.map(st => [`stamp:${st.id}` as AddChoice, st.label === '?' ? 'Question mark' : st.label])],
     ['Objects', OBJECTS.map(o => [`object:${o.id}` as AddChoice, o.name])],
   ];
-  for (const [title, list] of groups) {
-    const g = h('div', { className: 'menu-group' });
-    g.setAttribute('role', 'group');
-    g.setAttribute('aria-label', title);
-    const head = h('div', { className: 'menu-head', textContent: title });
-    head.setAttribute('aria-hidden', 'true');
-    g.append(head);
-    for (const [c, name] of list) {
+  const tablist = h('div', { className: 'menu-tabs' });
+  tablist.setAttribute('role', 'tablist');
+  tablist.setAttribute('aria-label', 'Kinds of evidence');
+  const panel = h('div', { className: 'menu-list' });
+  panel.setAttribute('role', 'tabpanel');
+  const tabBtns: HTMLButtonElement[] = [];
+  const showGroup = (n: number) => {
+    lastGroup = n;
+    tabBtns.forEach((t, k) => { t.setAttribute('aria-selected', String(k === n)); t.tabIndex = k === n ? 0 : -1; });
+    panel.setAttribute('aria-labelledby', tabBtns[n].id);
+    panel.replaceChildren();
+    for (const [c, name] of groups[n][1]) {
       const m = h('button', { type: 'button', textContent: name });
       m.setAttribute('role', 'menuitem');
       m.addEventListener('click', () => { closeMenu(); add.focus(); deps.addItem(c); });
-      g.append(m);
+      panel.append(m);
     }
-    menu.append(g);
-  }
+  };
+  groups.forEach(([title], n) => {
+    const t = h('button', { type: 'button', className: 'menu-tab', textContent: title, id: `menu-tab-${n}` });
+    t.setAttribute('role', 'tab');
+    t.addEventListener('click', () => showGroup(n));
+    tabBtns.push(t);
+    tablist.append(t);
+  });
+  menu.append(tablist, panel);
+  showGroup(lastGroup);
   menu.addEventListener('keydown', e => {
-    const items = [...menu.querySelectorAll<HTMLElement>('[role=menuitem]')];
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    if (e.key === 'Escape') { closeMenu(); add.focus(); }
+    const active = document.activeElement as HTMLElement | null;
+    if (e.key === 'Escape') { closeMenu(); add.focus(); return; }
+    const ti = tabBtns.indexOf(active as HTMLButtonElement);
+    if (ti >= 0) {
+      let to = -1;
+      if (e.key === 'ArrowRight') to = (ti + 1) % tabBtns.length;
+      else if (e.key === 'ArrowLeft') to = (ti + tabBtns.length - 1) % tabBtns.length;
+      else if (e.key === 'Home') to = 0;
+      else if (e.key === 'End') to = tabBtns.length - 1;
+      if (to >= 0) { e.preventDefault(); showGroup(to); tabBtns[to].focus(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); panel.querySelector<HTMLElement>('[role=menuitem]')?.focus(); }
+      return;
+    }
+    const items = [...panel.querySelectorAll<HTMLElement>('[role=menuitem]')];
+    const i = items.indexOf(active as HTMLElement);
     if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); items[i <= 0 ? items.length - 1 : i - 1].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); if (i === 0) tabBtns[lastGroup].focus(); else items[i < 0 ? items.length - 1 : i - 1].focus(); }
     if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
     if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
     if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {

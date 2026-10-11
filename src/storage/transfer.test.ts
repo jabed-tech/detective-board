@@ -175,6 +175,15 @@ describe('phase 2+3 fields', () => {
     r.closed = 'yes';
     expect('closed' in validateBoard(r)!).toBe(false);
   });
+  it('away only when true', () => {
+    const r = raw();
+    r.away = true;
+    expect(validateBoard(r)!.away).toBe(true);
+    r.away = 'yes';
+    expect('away' in validateBoard(r)!).toBe(false);
+    r.away = false;
+    expect('away' in validateBoard(r)!).toBe(false);
+  });
   it('validates link material', () => {
     const r = raw();
     r.links[0].material = 'marker';

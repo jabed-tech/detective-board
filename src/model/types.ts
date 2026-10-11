@@ -62,7 +62,7 @@ export interface Link {
 
 export interface Board {
   id: string; name: string; caseNo: number;
-  surface: SurfaceId; mood: MoodId; closed?: boolean;
+  surface: SurfaceId; mood: MoodId; closed?: boolean; away?: true;
   items: Item[]; links: Link[];
   version: 1; updatedAt: number;
 }

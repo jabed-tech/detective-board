@@ -65,6 +65,7 @@ async function boot() {
   let board: Board | undefined;
   if (prefs.lastBoardId) board = await db.loadBoard(prefs.lastBoardId);
   if (!board && metas[0]) board = await db.loadBoard(metas[0].id);
+  if (board?.away) { const { away: _a, ...rest } = board; board = rest; await db.saveBoard(board); metas = await db.listBoards(); } // never boot into a hidden case
   if (!board) { board = createDemoBoard(); await db.saveBoard(board); metas = await db.listBoards(); }
 
   const store = createStore(board);
@@ -161,6 +162,8 @@ async function boot() {
     current: () => store.get().id,
     open: id => void openBoard(id),
     create: () => void newCase(),
+    putAway: id => void putAway(id),
+    reopen: id => void reopenCase(id),
   });
   const settings = createSettings($('settings') as HTMLDialogElement, {
     prefs: () => prefs,
@@ -237,8 +240,8 @@ async function boot() {
     if (gone) select({ kind: 'none' }); else renderDrawer(reason === 'undo' || reason === 'redo');
     metas = metas.map(m => {
       if (m.id !== b.id) return m;
-      const { closed: _c, ...rest } = m;
-      return { ...rest, name: b.name, ...(b.closed ? { closed: true } : {}) };
+      const { closed: _c, away: _a, ...rest } = m;
+      return { ...rest, name: b.name, ...(b.closed ? { closed: true } : {}), ...(b.away ? { away: true as const } : {}) };
     });
     tabs.render();
     refreshDesk();
@@ -425,6 +428,35 @@ async function boot() {
     store.load(b);
     setPrefs({ lastBoardId: id });
     viewport.fit();
+  }
+
+  // Put a case away: hidden from the tab bar, kept on the device.
+  async function putAway(id: string) {
+    const visible = metas.filter(m => !m.closed && !m.away);
+    if (visible.length < 2 || !visible.some(m => m.id === id)) return;
+    const at = visible.findIndex(m => m.id === id);
+    const next = visible[at + 1] ?? visible[at - 1];
+    if (id === store.get().id) {
+      store.commit({ ...store.get(), away: true }); // autosave persists it; opening the next case flushes
+      await openBoard(next.id);
+    } else {
+      const b = await db.loadBoard(id);
+      if (!b) return;
+      try { await db.saveBoard({ ...b, away: true }); } catch { storageError(); return; }
+      metas = await db.listBoards();
+      tabs.render();
+    }
+    toast('Case put away.', 'Find it under “Put away”.');
+  }
+
+  async function reopenCase(id: string) {
+    await autosave.flush();
+    const b = await db.loadBoard(id);
+    if (!b) return;
+    const { away: _a, ...rest } = b;
+    try { await db.saveBoard(rest); } catch { storageError(); return; }
+    metas = await db.listBoards();
+    await openBoard(id);
   }
 
   async function newCase() {
