@@ -104,6 +104,15 @@ function drawAcrylic(ctx: CanvasRenderingContext2D, r: Rect): void {
   // 6. cut edge
   ctx.strokeStyle = 'rgba(190,255,240,.35)'; ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, W - 2, H - 2);
+  // inner glow (CSS `inset 0 0 26px rgba(160,240,230,.16)`): stacked inset strokes fading inward, clipped to the panel
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+  for (let i = 0; i < 6; i++) {
+    ctx.strokeStyle = `rgba(160,240,230,${(0.16 * (1 - i / 6) / 2.2).toFixed(3)})`;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2 + i * 4, 2 + i * 4, W - 4 - i * 8, H - 4 - i * 8);
+  }
+  ctx.restore();
   // 7. chrome standoff bolts
   for (const [bx, by] of [[60, 60], [W - 60, 60], [60, H - 60], [W - 60, H - 60]]) {
     const ring = ctx.createRadialGradient(bx, by, 0, bx, by, 20);   // CSS: .35 until 17px, fading to 0 at 20px

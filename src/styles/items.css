@@ -136,6 +136,7 @@
 #world[data-mode="string"] .item { cursor: crosshair; }
 /* Hover / press highlight: shows what the current tool will act on. */
 #world[data-mode="move"] .item.hot .item-body { box-shadow: 0 0 0 3px rgba(255, 210, 63, .55), 0 1px 2px rgba(0, 0, 0, .45), calc(var(--sx, 1) * 6px) calc(var(--sy, 1) * 14px) 22px -6px rgba(0, 0, 0, .55); }
+#world[data-mode="move"][data-surface="glass"] .item.hot:not(.item-newspaper):not(.item-receipt):not(.item-object):not(.item-casefile):not(.item-stamp) .item-body { box-shadow: 0 0 0 3px rgba(255, 210, 63, .55), 0 1px 2px rgba(0, 0, 0, .3), calc(var(--sx, 1) * 18px) calc(var(--sy, 1) * 34px) 40px -6px rgba(0, 0, 0, .45); }
 #world[data-mode="erase"] .item.hot .item-body { outline: 3px dashed #c0392b; outline-offset: 4px; }
 #world[data-mode="erase"] .item.hot .item-body::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(192, 57, 43, .12); }
 #world[data-mode="string"] .item.hot .item-body { outline: 2px solid var(--focus); outline-offset: 4px; }

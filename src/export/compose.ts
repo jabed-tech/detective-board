@@ -116,7 +116,8 @@ async function paint(ctx: CanvasRenderingContext2D, b: Board, o: ComposeOpts, r:
       const paper = it.type !== 'stamp' && it.type !== 'object';
       if (paper) {
         ctx.save();
-        setShadow(ctx, 'rgba(0,0,0,.45)', 18, 6 * sx, 14 * sy);
+        if (b.surface === 'glass' && !['newspaper', 'receipt', 'casefile'].includes(it.type)) setShadow(ctx, 'rgba(0,0,0,.45)', 40, 18 * sx, 34 * sy);   // the wall is far behind the acrylic
+        else setShadow(ctx, 'rgba(0,0,0,.45)', 18, 6 * sx, 14 * sy);
         ctx.fillStyle = '#d8d0bc';
         const shape = shapes[it.type];
         if (shape) { shape(ctx, it); ctx.fill(); } else ctx.fillRect(0, 0, it.w, it.h);
