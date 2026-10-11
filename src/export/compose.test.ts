@@ -164,14 +164,16 @@ describe('composeBoard', () => {
   });
 
   it('acrylic board draws the room, bokeh, sheen and four bolts', () => {
-    const c = { linear: 0, radial: 0, arc: 0 };
+    const c = { linear: 0, radial: 0, arc: 0, pattern: 0 };
+    const fills: unknown[] = [];
     const props: Record<string, unknown> = {};
     const ctx = new Proxy({}, {
       get(_t, k: string) {
         if (k === 'createLinearGradient') return () => { c.linear++; return { addColorStop() {} }; };
         if (k === 'createRadialGradient') return () => { c.radial++; return { addColorStop() {} }; };
-        if (k === 'createPattern') return () => ({});
+        if (k === 'createPattern') return () => { c.pattern++; return {}; };
         if (k === 'createImageData') return (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) });
+        if (k === 'fillRect') return () => { fills.push(props.fillStyle); };
         if (k === 'arc') return () => { c.arc++; };
         if (k in props) return props[k];
         return () => undefined;
@@ -184,6 +186,8 @@ describe('composeBoard', () => {
     expect(c.linear).toBeGreaterThanOrEqual(1);
     expect(c.radial).toBeGreaterThanOrEqual(5);
     expect(c.arc).toBeGreaterThanOrEqual(4);
+    expect(fills[0]).toBe('#6a7682');   // base colour first
+    expect(c.pattern).toBe(0);           // noise tile skipped
   });
 
   it('composeBoard on a brick board still succeeds when the tile image fails to decode', async () => {

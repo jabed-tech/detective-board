@@ -106,7 +106,9 @@ function drawAcrylic(ctx: CanvasRenderingContext2D, r: Rect): void {
   ctx.strokeRect(1, 1, W - 2, H - 2);
   // 7. chrome standoff bolts
   for (const [bx, by] of [[60, 60], [W - 60, 60], [60, H - 60], [W - 60, H - 60]]) {
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    const ring = ctx.createRadialGradient(bx, by, 0, bx, by, 20);   // CSS: .35 until 17px, fading to 0 at 20px
+    ring.addColorStop(0, 'rgba(0,0,0,.35)'); ring.addColorStop(0.85, 'rgba(0,0,0,.35)'); ring.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ring;
     ctx.beginPath(); ctx.arc(bx, by, 20, 0, Math.PI * 2); ctx.fill();
     const g = ctx.createRadialGradient(bx, by, 0, bx, by, 14);
     g.addColorStop(0, '#f4f6f7'); g.addColorStop(0.4, '#b9c1c6'); g.addColorStop(1, '#6b747b');
