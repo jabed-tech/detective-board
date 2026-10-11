@@ -4,7 +4,7 @@ Date: 2026-10-11 · Status: approved in chat, awaiting written-spec review · Br
 
 ## 1. Intent
 
-Four changes asked for after using phases 2+3:
+Five changes asked for after using phases 2+3:
 
 1. Brick should feel like a **close-up of part of a wall** with notes on it, not a giant wall seen from afar.
 2. The **outer frame** (folder-tab bar, desk toolbar, drawer, menus, dialogs, room around the board) is always warm brown wood. It should **follow the case's mood**.
