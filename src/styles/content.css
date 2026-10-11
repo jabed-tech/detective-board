@@ -98,3 +98,7 @@
 .obj-tag { position: absolute; right: calc(-14px * var(--k, 1)); bottom: calc(-16px * var(--k, 1)); max-width: 80%; background: #f1e6c6; color: #1d2a5c;
   padding: 2px calc(10px * var(--k, 1)) 2px calc(16px * var(--k, 1)); font: calc(22px * var(--tk, 1))/1.15 var(--font-hand); border: 1px solid #b9a77c;
   clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); overflow-wrap: anywhere; transform: rotate(3deg); }
+
+.world[data-surface="glass"] :is(.item-newspaper, .item-receipt) .item-body { box-shadow: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .3)) drop-shadow(calc(var(--sx, 1) * 18px) calc(var(--sy, 1) * 34px) 18px rgba(0, 0, 0, .4)); }
+.world[data-surface="glass"] .item-object .item-body { box-shadow: none; }

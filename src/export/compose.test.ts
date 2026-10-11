@@ -163,6 +163,29 @@ describe('composeBoard', () => {
     expect(() => run()).not.toThrow();
   });
 
+  it('acrylic board draws the room, bokeh, sheen and four bolts', () => {
+    const c = { linear: 0, radial: 0, arc: 0 };
+    const props: Record<string, unknown> = {};
+    const ctx = new Proxy({}, {
+      get(_t, k: string) {
+        if (k === 'createLinearGradient') return () => { c.linear++; return { addColorStop() {} }; };
+        if (k === 'createRadialGradient') return () => { c.radial++; return { addColorStop() {} }; };
+        if (k === 'createPattern') return () => ({});
+        if (k === 'createImageData') return (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) });
+        if (k === 'arc') return () => { c.arc++; };
+        if (k in props) return props[k];
+        return () => undefined;
+      },
+      set(_t, k: string, v) { props[k] = v; return true; },
+    }) as unknown as CanvasRenderingContext2D;
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ctx as never);
+    drawBackground(ctx, { x: 0, y: 0, w: 4000, h: 3000 }, 'glass');
+    spy.mockRestore();
+    expect(c.linear).toBeGreaterThanOrEqual(1);
+    expect(c.radial).toBeGreaterThanOrEqual(5);
+    expect(c.arc).toBeGreaterThanOrEqual(4);
+  });
+
   it('composeBoard on a brick board still succeeds when the tile image fails to decode', async () => {
     const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => fakeCtx([]) as never);
     vi.stubGlobal('Image', class { onerror?: () => void; set src(_v: string) { setTimeout(() => this.onerror?.(), 0); } });

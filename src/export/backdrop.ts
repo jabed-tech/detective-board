@@ -3,7 +3,7 @@ import { rng } from '../model/random';
 import { BRICK_TONES } from '../view/brickTile';
 import type { Rect } from './region';
 
-const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#b3a794', wood: '#9a6d47', archive: '#b49a73' };
+const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#6a7682', brick: '#b3a794', wood: '#9a6d47', archive: '#b49a73' };
 
 function noiseTile(seed: number, alphaLo: number, alphaHi: number): HTMLCanvasElement | null {
   const c = document.createElement('canvas');
@@ -37,6 +37,8 @@ export function drawBackground(ctx: CanvasRenderingContext2D, r: Rect, surface: 
     if (pat) { ctx.fillStyle = pat; ctx.fillRect(r.x, r.y, r.w, r.h); }   // pattern anchored at world 0,0 like the CSS tile
     else { ctx.fillStyle = BRICK_TONES[0]; ctx.fillRect(r.x, r.y, r.w, r.h); }  // decode failed: plain brick
     glowWhitewash(ctx, r);
+  } else if (surface === 'glass') {
+    drawAcrylic(ctx, r);
   } else if (surface === 'wood') {
     ctx.strokeStyle = 'rgba(20,12,6,.5)'; ctx.lineWidth = 3;
     ctx.beginPath();
@@ -47,7 +49,7 @@ export function drawBackground(ctx: CanvasRenderingContext2D, r: Rect, surface: 
     for (let x = Math.floor(r.x / 220) * 220 + 4; x < r.x + r.w; x += 220) { ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); }
     ctx.stroke();
   }
-  if (surface !== 'brick') {   // the brick tile already carries its own noise
+  if (surface !== 'brick' && surface !== 'glass') {   // brick carries its own noise; the acrylic room is smooth (out of focus)
     const tile = noiseTile(surface.length * 977 + 13, 10, 30);
     const npat = tile && ctx.createPattern(tile, 'repeat');
     if (npat) { ctx.fillStyle = npat; ctx.fillRect(r.x, r.y, r.w, r.h); }
@@ -70,6 +72,47 @@ function glow(ctx: CanvasRenderingContext2D, r: Rect, cx: number, cy: number, rx
 /** Whitewash pooling bottom-left of the 4000 x 3000 board; matches the CSS `ellipse at 0% 100%`. */
 function glowWhitewash(ctx: CanvasRenderingContext2D, r: Rect): void {
   glow(ctx, r, 0, BOARD_H, BOARD_W * 0.55 * 1.414, BOARD_H * 0.55 * 1.414, [[0, 'rgba(240,232,220,.45)'], [1, 'rgba(240,232,220,0)']]);
+}
+
+/** Acrylic panel in world coordinates (4000 x 3000), mirroring the `.surface-glass` CSS layers bottom to top. */
+function drawAcrylic(ctx: CanvasRenderingContext2D, r: Rect): void {
+  const W = BOARD_W, H = BOARD_H;
+  // 1. room gradient
+  const room = ctx.createLinearGradient(0, 0, 0, H);
+  room.addColorStop(0, '#7d8996'); room.addColorStop(0.4, '#717d89'); room.addColorStop(1, '#6a7682');
+  ctx.fillStyle = room; ctx.fillRect(0, 0, W, H);
+  // 2. desk and partition bands
+  const bands: [number, number, string][] = [[0.62, 0.64, 'rgba(24,30,36,.18)'], [0.64, 0.78, 'rgba(40,48,56,.12)'], [0.78, 0.80, 'rgba(24,30,36,.18)'], [0.80, 1, 'rgba(34,40,48,.1)']];
+  for (const [a, b, c] of bands) { ctx.fillStyle = c; ctx.fillRect(0, H * a, W, H * (b - a)); }
+  // 3. bokeh (CSS `circle R at x% y%`, colour fades to transparent at 70%)
+  const bokeh: [number, number, number, string][] = [
+    [0.14, 0.58, 80, 'rgba(255,200,120,.26)'], [0.36, 0.66, 55, 'rgba(140,220,255,.22)'], [0.63, 0.60, 100, 'rgba(140,200,255,.2)'],
+    [0.86, 0.70, 65, 'rgba(255,210,140,.22)'], [0.48, 0.52, 45, 'rgba(160,255,200,.16)'],
+  ];
+  const fade = (c: string): [number, string][] => [[0, c], [0.7, c.replace(/[\d.]+\)$/, '0)')], [1, c.replace(/[\d.]+\)$/, '0)')]];
+  for (const [x, y, rad, c] of bokeh) glow(ctx, r, W * x, H * y, rad, rad, fade(c));
+  // 4. ceiling strips
+  glow(ctx, r, W * 0.22, H * 0.06, 640, 70, fade('rgba(235,245,255,.5)'));
+  glow(ctx, r, W * 0.70, H * 0.04, 640, 70, fade('rgba(235,245,255,.4)'));
+  // 5. 115deg sheen bands (hard stops along the CSS gradient line)
+  const a = (115 * Math.PI) / 180, dx = Math.sin(a), dy = -Math.cos(a);
+  const half = (Math.abs(W * dx) + Math.abs(H * dy)) / 2, cx = W / 2, cy = H / 2;
+  const sheen = ctx.createLinearGradient(cx - dx * half, cy - dy * half, cx + dx * half, cy + dy * half);
+  const t = 'rgba(255,255,255,0)', w1 = 'rgba(255,255,255,.10)', w2 = 'rgba(255,255,255,.06)';
+  for (const [o, c] of [[0, t], [0.18, t], [0.18, w1], [0.24, w1], [0.24, t], [0.58, t], [0.58, w2], [0.61, w2], [0.61, t], [1, t]] as [number, string][]) sheen.addColorStop(o, c);
+  ctx.fillStyle = sheen; ctx.fillRect(0, 0, W, H);
+  // 6. cut edge
+  ctx.strokeStyle = 'rgba(190,255,240,.35)'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, W - 2, H - 2);
+  // 7. chrome standoff bolts
+  for (const [bx, by] of [[60, 60], [W - 60, 60], [60, H - 60], [W - 60, H - 60]]) {
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.arc(bx, by, 20, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(bx, by, 0, bx, by, 14);
+    g.addColorStop(0, '#f4f6f7'); g.addColorStop(0.4, '#b9c1c6'); g.addColorStop(1, '#6b747b');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(bx, by, 14, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 function multiply(ctx: CanvasRenderingContext2D, r: Rect, color: string): void {

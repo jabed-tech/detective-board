@@ -8,4 +8,5 @@ export function applySurface(el: HTMLElement, id: SurfaceId): void {
   el.setAttribute('aria-label', SURFACES[id].name);
   if (id === 'brick') el.style.setProperty('--brick-tile', `url("${(brickUrl ??= svgDataUrl(brickTileSvg()))}")`);
   else el.style.removeProperty('--brick-tile');
+  if (el.parentElement) el.parentElement.dataset.surface = id;
 }
