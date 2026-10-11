@@ -3,8 +3,19 @@ import type { MoodId } from '../model/types';
 export type IncidentKind = 'ring' | 'talk' | 'call' | 'tv';
 export interface Clip { id: string; file: string; kind: IncidentKind; moods: MoodId[] }
 
-/** Recorded CC0 clips in public/audio/incidents/. Empty until the user approves clips — the layer is then silent. */
-export const CLIPS: Clip[] = [];
+/** Recorded CC0 clips in public/audio/incidents/ (Freesound, credited in README). Mono 22 kHz, 5–14 s, loudness-matched. */
+export const CLIPS: Clip[] = [
+  { id: 'ring-rotary', file: 'ring-rotary.mp3', kind: 'ring', moods: ['noir-office', 'archive'] },
+  { id: 'ring-landline', file: 'ring-landline.mp3', kind: 'ring', moods: ['precinct'] },
+  { id: 'ring-w48', file: 'ring-w48.mp3', kind: 'ring', moods: ['basement', 'archive'] },
+  { id: 'ring-near', file: 'ring-near.mp3', kind: 'ring', moods: ['precinct', 'motel'] },
+  { id: 'chatter-typing', file: 'chatter-typing.mp3', kind: 'talk', moods: ['precinct'] },
+  { id: 'chatter-office', file: 'chatter-office.mp3', kind: 'talk', moods: ['precinct'] },
+  { id: 'wall-voices-a', file: 'wall-voices-a.mp3', kind: 'tv', moods: ['noir-office', 'motel'] },
+  { id: 'wall-voices-b', file: 'wall-voices-b.mp3', kind: 'tv', moods: ['motel'] },
+  { id: 'call-answer', file: 'call-answer.mp3', kind: 'call', moods: ['precinct', 'noir-office'] },
+  { id: 'call-message', file: 'call-message.mp3', kind: 'call', moods: ['precinct'] },
+];
 
 /** Gap between incidents per mood, in ms [min, max). Very sporadic on purpose. */
 export const INCIDENT_GAP: Record<MoodId, [number, number]> = {
