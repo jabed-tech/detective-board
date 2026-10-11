@@ -1,8 +1,25 @@
 :root {
-  --ink: #1b1712;
+  /* Frame theme fallbacks = Noir (themes.ts overwrites these per mood; a test keeps them equal). */
+  --room-bg: radial-gradient(ellipse at 50% 30%, #1c1712, #070605 70%);
+  --tabbar-bg: #0b0908;
+  --tabbar-edge: #b8913f;
+  --tab-bg: #a8916a;
+  --tab-ink: #0e0b07;
+  --tab-current-bg: #c9b07a;
+  --tab-closed-bg: #5e5038;
+  --tab-closed-ink: #f1e6c6;
+  --tab-new-ink: #d9b46a;
+  --desk-bg: linear-gradient(#2a2420, #141110 30%, #0c0a09);
+  --desk-edge: #b8913f;
+  --chrome-text: #f1e3c2;
   --paper: #f4ecd8;
+  --ink: #1b1712;
+  --rule: #c8b98f;
+  --btn-bg: #e9dcb6;
+  --btn-border: #8a7246;
+  --btn-hover: #f4e9c6;
+  --accent: #b8913f;
   --cork: #b88a57;
-  --chrome-text: #f4ecd8;
   --focus: #ffd23f;
   --font-ui: 'Courier Prime', ui-monospace, monospace;
   --font-display: 'Special Elite', 'Courier Prime', monospace;
@@ -14,7 +31,7 @@
 }
 :root.neat-hand { --font-hand: 'Patrick Hand', cursive; }
 
-html, body { margin: 0; height: 100%; overscroll-behavior: none; background: #120e0b; color: var(--chrome-text); font-family: var(--font-ui); }
+html, body { margin: 0; height: 100%; overscroll-behavior: none; background: var(--tabbar-bg); color: var(--chrome-text); font-family: var(--font-ui); }
 #app {
   position: relative;
   display: grid;

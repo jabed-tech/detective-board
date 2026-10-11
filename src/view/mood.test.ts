@@ -23,4 +23,11 @@ describe('createMood', () => {
     m.setAtmosphere('off');
     expect(q('.fx-grain').dataset.anim).toBe('off');
   });
+  it('setMood themes the frame on <html>', () => {
+    const m = createMood(document.createElement('div'), 'gentle');
+    expect(document.documentElement.dataset.mood).toBe('noir-office');
+    m.setMood('motel');
+    expect(document.documentElement.dataset.mood).toBe('motel');
+    expect(document.documentElement.style.getPropertyValue('--tab-bg')).toBe('#f2b99a');
+  });
 });

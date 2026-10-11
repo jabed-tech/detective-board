@@ -1,6 +1,7 @@
 import { MOODS, type Atmosphere, type EffectId, type MoodId } from '../model/types';
 import { activeEffects } from './effects';
 import { flickerSequence, nextFlickerDelay } from './flicker';
+import { applyTheme } from './themes';
 
 export interface Mood {
   setAtmosphere(a: Atmosphere): void;
@@ -60,6 +61,7 @@ export function createMood(root: HTMLElement, initial: Atmosphere): Mood {
   rm.addEventListener('change', apply);
   root.dataset.mood = mood;
   root.dataset.light = MOODS[mood].light;
+  applyTheme(document.documentElement, mood);
   apply();
 
   const pct = (v: number) => `${Math.min(90, Math.max(10, v))}%`;
@@ -74,6 +76,7 @@ export function createMood(root: HTMLElement, initial: Atmosphere): Mood {
       const light = MOODS[id].light;
       root.dataset.mood = id;
       root.dataset.light = light;
+      applyTheme(document.documentElement, id);
       const [sx, sy] = SHADOW[light];
       document.documentElement.style.setProperty('--sx', String(sx));
       document.documentElement.style.setProperty('--sy', String(sy));
