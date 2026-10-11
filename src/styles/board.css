@@ -38,11 +38,11 @@
 
 /* Wood: alternating vertical panels with grooves and grain */
 .surface-wood {
-  background-color: #8a6240;
+  background-color: #9a6d47;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .25' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .09 0 0 0 0 .04 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E"),
     repeating-linear-gradient(90deg, transparent 0 397px, rgba(20, 10, 4, .35) 397px 400px),
-    repeating-linear-gradient(90deg, #8a6240 0 400px, #7a5535 400px 800px);
+    repeating-linear-gradient(90deg, #9a6d47 0 400px, #8c6340 400px 800px);
   background-size: 600px 600px, 400px 100%, 800px 100%;
 }
 

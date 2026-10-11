@@ -109,9 +109,9 @@ dialog.newcase { width: min(92vw, 680px); max-height: 90dvh; overflow: auto; }
 
 /* CASE CLOSED archive tabs */
 .tab-archive { background: transparent; color: #e2c88f; border: 1px solid #8a7246; border-bottom: 0; justify-content: center; font-size: 13px; }
-.tab-closed { position: relative; background: #8d7a58; color: #3a2d1b; }
-.tab-closed[aria-current="true"] { background: #c9b389; }
-.tab-stamp { position: absolute; top: 2px; right: 4px; font: 700 9px var(--font-ui); letter-spacing: .08em; color: #a3261c; border: 1px solid #a3261c; padding: 0 3px; border-radius: 2px; transform: rotate(6deg); }
+.tab-closed { position: relative; background: #a8946d; color: #2a1f10; } /* 5.5:1 */
+.tab-closed[aria-current="true"] { background: #d8c79d; } /* 9.7:1 with #2a1f10 */
+.tab-stamp { position: absolute; top: 2px; right: 4px; font: 700 11px var(--font-ui); letter-spacing: .08em; color: #8f1d14; background: #f1e6c6; border: 1px solid #8f1d14; padding: 0 3px; border-radius: 2px; transform: rotate(6deg); } /* badge 7.2:1 */
 
 /* Grouped Add menu */
 .desk-menu { max-height: min(70vh, 560px); overflow-y: auto; }

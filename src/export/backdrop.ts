@@ -2,7 +2,7 @@ import { MOODS, type EffectId, type MoodId, type SurfaceId } from '../model/type
 import { rng } from '../model/random';
 import type { Rect } from './region';
 
-const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#9a5640', wood: '#8a6240', archive: '#b49a73' };
+const BASE: Record<SurfaceId, string> = { cork: '#b88a57', glass: '#cfd8dc', brick: '#9a5640', wood: '#9a6d47', archive: '#b49a73' };
 
 function noiseTile(seed: number, alphaLo: number, alphaHi: number): HTMLCanvasElement | null {
   const c = document.createElement('canvas');
@@ -92,16 +92,18 @@ export function drawMood(ctx: CanvasRenderingContext2D, r: Rect, mood: MoodId, e
   } else if (light === 'bulb') {
     multiply(ctx, r, 'rgba(255,170,90,.10)');
     glow(ctx, r, cx, r.y + r.h * 0.35, r.w * 0.4, r.h * 0.45,
-      [[0, 'rgba(255,210,140,.16)'], [0.4, 'rgba(255,210,140,0)'], [0.7, dark + '.26)'], [1, dark + '.34)']]);
+      [[0, 'rgba(255,210,140,.16)'], [0.4, 'rgba(255,210,140,0)'], [0.7, dark + '.12)'], [1, dark + '.18)']]);
   } else if (light === 'fluorescent') {
+    glow(ctx, r, cx, r.y + r.h * 0.35, r.w * 0.45, r.h * 0.55, [[0, 'rgba(220,240,255,.10)'], [0.7, 'rgba(220,240,255,0)'], [1, 'rgba(220,240,255,0)']]);
     const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
     g.addColorStop(0, 'rgba(220,240,255,.10)'); g.addColorStop(0.55, 'rgba(220,240,255,.04)'); g.addColorStop(1, 'rgba(8,10,14,.22)');
     ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
   } else if (light === 'neon') {
+    glow(ctx, r, cx, r.y + r.h * 0.35, r.w * 0.4, r.h * 0.5, [[0, 'rgba(255,140,210,.08)'], [0.7, 'rgba(255,140,210,0)'], [1, 'rgba(255,140,210,0)']]);
     glow(ctx, r, r.x + r.w, r.y + r.h * 0.45, r.w * 0.6, r.h * 0.8, [[0, 'rgba(255,60,170,.16)'], [0.7, 'rgba(255,60,170,0)'], [1, 'rgba(255,60,170,0)']]);
     glow(ctx, r, r.x + r.w, r.y + r.h * 0.6, r.w * 0.5, r.h * 0.7, [[0, 'rgba(40,220,210,.10)'], [0.7, 'rgba(40,220,210,0)'], [1, 'rgba(40,220,210,0)']]);
     const g = ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
-    g.addColorStop(0, 'rgba(8,5,10,.30)'); g.addColorStop(1, 'rgba(8,5,10,.10)');
+    g.addColorStop(0, 'rgba(8,5,10,.12)'); g.addColorStop(1, 'rgba(8,5,10,.04)');
     ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
   } else {
     multiply(ctx, r, 'rgba(150,110,60,.18)');

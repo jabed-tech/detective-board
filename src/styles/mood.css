@@ -16,18 +16,21 @@
 /* ---- Phase 2: per-light lamp layer ---- */
 .mood[data-light="fluorescent"] .mood-warm { background: none; }
 .mood[data-light="fluorescent"] .mood-lamp {
-  background: linear-gradient(180deg, rgba(220, 240, 255, .10) 0%, rgba(220, 240, 255, .04) 55%, rgba(8, 10, 14, .22) 100%);
+  background:
+    radial-gradient(ellipse 45% 55% at var(--lx) var(--ly), rgba(220, 240, 255, .10) 0%, rgba(220, 240, 255, 0) 70%),
+    linear-gradient(180deg, rgba(220, 240, 255, .10) 0%, rgba(220, 240, 255, .04) 55%, rgba(8, 10, 14, .22) 100%);
 }
 .mood[data-light="bulb"] .mood-lamp {
   background: radial-gradient(ellipse 40% 45% at var(--lx) var(--ly),
-    rgba(255, 210, 140, .16) 0%, rgba(255, 210, 140, 0) 40%, rgba(8, 5, 3, .26) 70%, rgba(8, 5, 3, .34) 100%);
+    rgba(255, 210, 140, .16) 0%, rgba(255, 210, 140, 0) 40%, rgba(8, 5, 3, .12) 70%, rgba(8, 5, 3, .18) 100%);
 }
 .mood[data-light="neon"] .mood-warm { background: none; }
 .mood[data-light="neon"] .mood-lamp {
   background:
+    radial-gradient(ellipse 40% 50% at var(--lx) var(--ly), rgba(255, 140, 210, .08) 0%, rgba(255, 140, 210, 0) 70%),
     radial-gradient(ellipse 60% 80% at 100% 45%, rgba(255, 60, 170, .16) 0%, rgba(255, 60, 170, 0) 70%),
     radial-gradient(ellipse 50% 70% at 100% 60%, rgba(40, 220, 210, .10) 0%, rgba(40, 220, 210, 0) 70%),
-    linear-gradient(90deg, rgba(8, 5, 10, .30), rgba(8, 5, 10, .10));
+    linear-gradient(90deg, rgba(8, 5, 10, .12), rgba(8, 5, 10, .04));
 }
 .mood[data-light="sepia"] .mood-warm { background: rgba(150, 110, 60, .18); mix-blend-mode: multiply; }
 .mood[data-light="sepia"] .mood-lamp {
