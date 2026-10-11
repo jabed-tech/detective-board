@@ -29,9 +29,12 @@
 .mug-no { font: 700 calc(15px * var(--tk, 1))/1.2 var(--font-ui); letter-spacing: .1em; }
 
 /* newspaper */
-.item-newspaper .item-body { background: #efe9da; color: #1e1b16; padding: calc(14px * var(--k, 1)) calc(14px * var(--k, 1)) calc(18px * var(--k, 1));
-  display: flex; flex-direction: column; box-shadow: none;
-  clip-path: polygon(0 3%, 6% 0, 14% 2%, 24% 0, 36% 2%, 48% 0, 60% 2%, 72% 0, 84% 2%, 94% 0, 100% 2%, 100% 97%, 92% 100%, 80% 98%, 66% 100%, 52% 98%, 38% 100%, 24% 98%, 10% 100%, 0 97%); }
+.item-newspaper { --torn: polygon(0 3%, 6% 0, 14% 2%, 24% 0, 36% 2%, 48% 0, 60% 2%, 72% 0, 84% 2%, 94% 0, 100% 2%, 100% 97%, 92% 100%, 80% 98%, 66% 100%, 52% 98%, 38% 100%, 24% 98%, 10% 100%, 0 97%); }
+/* The torn shape is clipped on ::after (paper + sheen) so .item-body itself stays unclipped: focus ring, hover and erase highlights stay visible. */
+.item-newspaper .item-body { color: #1e1b16; padding: calc(14px * var(--k, 1)) calc(14px * var(--k, 1)) calc(18px * var(--k, 1));
+  display: flex; flex-direction: column; box-shadow: none; isolation: isolate; }
+.item-newspaper .item-body::after { z-index: -1; clip-path: var(--torn);
+  background: linear-gradient(135deg, rgba(255, 255, 255, .12), transparent 30%, transparent 75%, rgba(0, 0, 0, .12)), #efe9da; }
 .np-masthead { font: 700 max(18px, calc(22px * var(--k, 1)))/1.1 var(--font-news); text-align: center; border-bottom: 2px solid #1e1b16; padding-bottom: calc(4px * var(--k, 1)); overflow-wrap: anywhere; }
 .np-date { font: 13px var(--font-ui); text-align: center; margin: calc(4px * var(--k, 1)) 0; }
 .np-headline { font: 900 max(18px, calc(30px * var(--tk, 1)))/1.05 var(--font-news); margin-bottom: calc(6px * var(--k, 1)); overflow-wrap: anywhere; }
@@ -39,9 +42,17 @@
   flex: 1; min-height: 0; overflow: hidden; margin: 0; overflow-wrap: anywhere; }
 
 /* receipt */
-.item-receipt .item-body { background: #fbfbf6; color: #222; padding: calc(14px * var(--k, 1)) calc(14px * var(--k, 1)) calc(22px * var(--k, 1));
-  font: calc(15px * var(--tk, 1))/1.3 var(--font-ui); box-shadow: none;
-  clip-path: polygon(0 0, 100% 0, 100% 97%, 95% 100%, 90% 97%, 85% 100%, 80% 97%, 75% 100%, 70% 97%, 65% 100%, 60% 97%, 55% 100%, 50% 97%, 45% 100%, 40% 97%, 35% 100%, 30% 97%, 25% 100%, 20% 97%, 15% 100%, 10% 97%, 5% 100%, 0 97%); overflow: hidden; }
+.item-receipt { --torn: polygon(0 0, 100% 0, 100% 97%, 95% 100%, 90% 97%, 85% 100%, 80% 97%, 75% 100%, 70% 97%, 65% 100%, 60% 97%, 55% 100%, 50% 97%, 45% 100%, 40% 97%, 35% 100%, 30% 97%, 25% 100%, 20% 97%, 15% 100%, 10% 97%, 5% 100%, 0 97%); }
+.item-receipt .item-body { color: #222; padding: calc(14px * var(--k, 1)) calc(14px * var(--k, 1)) calc(22px * var(--k, 1));
+  font: calc(15px * var(--tk, 1))/1.3 var(--font-ui); box-shadow: none; isolation: isolate; overflow: hidden; }
+.item-receipt .item-body::after { z-index: -1; clip-path: var(--torn);
+  background: linear-gradient(135deg, rgba(255, 255, 255, .12), transparent 30%, transparent 75%, rgba(0, 0, 0, .12)), #fbfbf6; }
+/* Torn edge shadow: clip-path would cut a box-shadow, so cast it from the whole body with a filter. */
+.item-newspaper .item-body, .item-receipt .item-body {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)) drop-shadow(calc(var(--sx, 1) * 6px) calc(var(--sy, 1) * 12px) 10px rgba(0, 0, 0, .45)); }
+.item-newspaper.lifted .item-body, .item-receipt.lifted .item-body {
+  box-shadow: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)) drop-shadow(calc(var(--sx, 1) * 14px) calc(var(--sy, 1) * 26px) 18px rgba(0, 0, 0, .45)); }
+.item-newspaper .aged-overlay, .item-receipt .aged-overlay { clip-path: var(--torn); }
 .rc-store { text-align: center; text-transform: uppercase; font-weight: 700; overflow-wrap: anywhere; }
 .rc-time { text-align: center; margin-bottom: calc(6px * var(--k, 1)); }
 .rc-lines { list-style: none; margin: 0; padding: 0; }
@@ -83,7 +94,7 @@
 /* object */
 .item-object .item-body { background: none; box-shadow: none; }
 .obj-art { position: absolute; inset: 0; }
-.obj-art svg { width: 100%; height: 100%; display: block; filter: drop-shadow(var(--sx, 4px) var(--sy, 8px) 5px rgba(0, 0, 0, .5)); }
+.obj-art svg { width: 100%; height: 100%; display: block; filter: drop-shadow(calc(var(--sx, 1) * 4px) calc(var(--sy, 1) * 8px) 5px rgba(0, 0, 0, .5)); }
 .obj-tag { position: absolute; right: calc(-14px * var(--k, 1)); bottom: calc(-16px * var(--k, 1)); max-width: 80%; background: #f1e6c6; color: #1d2a5c;
   padding: 2px calc(10px * var(--k, 1)) 2px calc(16px * var(--k, 1)); font: calc(22px * var(--tk, 1))/1.15 var(--font-hand); border: 1px solid #b9a77c;
   clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); overflow-wrap: anywhere; transform: rotate(3deg); }
