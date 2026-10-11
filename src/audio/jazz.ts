@@ -46,6 +46,7 @@ export function nextSirenDelay(rand: () => number): number {
   return 40_000 + Math.floor(rand() * 80_000);
 }
 
+/** The mood's one signature sound (jazz drops out under the user's own music), plus the rare phone/voice incidents. */
 export function layersFor(mood: MoodId, musicPlaying: boolean): AmbienceId[] {
-  return MOODS[mood].ambience.filter(a => !(musicPlaying && a === 'jazz'));
+  return [...MOODS[mood].ambience.filter(a => !(musicPlaying && a === 'jazz')), 'incidents'];
 }

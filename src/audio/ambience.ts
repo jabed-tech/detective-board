@@ -1,14 +1,20 @@
 import type { AmbienceId, MoodId } from '../model/types';
 import { chordNotes, layersFor, nextSirenDelay, progression, rng, walkingBass } from './jazz';
 import type { Chord } from './jazz';
+import { CLIPS, MUFFLE, nextIncidentDelay, pickClip } from './incidents';
 
 export interface Ambience {
   unlock(): void; settled(): boolean; setMood(id: MoodId): void; setEnabled(on: boolean): void;
   setVolume(v: number): void; setMuted(m: boolean): void; setMusicPlaying(on: boolean): void;
 }
 
-interface Layer { gain: GainNode; stop(): void }
-interface Env { c: AudioContext; out: GainNode; noise: AudioBuffer; later: (fn: () => void, ms: number) => void; every: (fn: () => void, ms: number) => void }
+interface Layer { gain: GainNode; stop(): void; retire(): void }
+interface Env {
+  c: AudioContext; out: GainNode; noise: AudioBuffer; mood: MoodId;
+  later: (fn: () => void, ms: number) => void; every: (fn: () => void, ms: number) => void;
+  alive: () => boolean;                                   // false once this layer is stopped, retired (fading out) or silent
+  clip: (file: string) => Promise<AudioBuffer | null>;    // cached fetch+decode; null on any failure
+}
 type Builder = (e: Env) => () => void;   // returns a teardown for sources/timers it started
 
 const FADE = 1.5;
@@ -33,21 +39,6 @@ function burst(e: Env, when: number, dur: number, peak: number, through: AudioNo
   n.connect(g); g.connect(out);
   s.start(when, Math.random() * 1.5, dur + 0.01);
 }
-
-const rain: Builder = e => {
-  const { c } = e;
-  const s = c.createBufferSource(); s.buffer = e.noise; s.loop = true;
-  const lp = filter(c, 'lowpass', 1400), hp = filter(c, 'highpass', 300);
-  const g = c.createGain(); g.gain.value = 0.5;
-  s.connect(lp); lp.connect(hp); hp.connect(g); g.connect(e.out);
-  s.start();
-  const drop = (): void => {
-    burst(e, c.currentTime, 0.003, between(0.05, 0.15), [filter(c, 'highpass', 3000)]);
-    e.later(drop, 1000 / between(8, 20));
-  };
-  drop();
-  return () => { try { s.stop(); } catch { /* already stopped */ } };
-};
 
 const jazz: Builder = e => {
   const { c } = e;
@@ -141,7 +132,7 @@ const hum: Builder = e => {
   const { c } = e;
   const bus = c.createGain(); bus.gain.value = 1; bus.connect(e.out);
   const oscs: OscillatorNode[] = [];
-  for (const [f, v] of [[50, 0.04], [100, 0.02], [150, 0.01]] as const) {
+  for (const [f, v] of [[50, 0.028], [100, 0.014], [150, 0.007]] as const) {
     const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f;
     const g = c.createGain(); g.gain.value = v;
     o.connect(g); g.connect(bus); o.start(); oscs.push(o);
@@ -176,7 +167,40 @@ const tick: Builder = e => {
   return () => {};
 };
 
-const BUILDERS: Record<AmbienceId, Builder> = { rain, jazz, sirens, hum, buzz, tick };
+/** Rare recorded phone calls / voices, one at a time, muffled as if through a wall. */
+const incidents: Builder = e => {
+  const { c } = e;
+  let last: string | null = null;
+  let playing: AudioBufferSourceNode | null = null;
+  let first = true;
+  const bad = new Set<string>();
+  const arm = (): void => { e.later(fire, nextIncidentDelay(e.mood, Math.random, first)); first = false; };
+  const fire = (): void => {
+    const clip = !e.alive() || playing ? null : pickClip(CLIPS.filter(k => !bad.has(k.id)), e.mood, last, Math.random);
+    if (!clip) { arm(); return; }
+    void e.clip(clip.file).then(buf => {
+      if (!e.alive()) return;
+      if (!buf) { bad.add(clip.id); arm(); return; }
+      last = clip.id;
+      const s = c.createBufferSource(); s.buffer = buf;
+      const [lo, hi] = MUFFLE[e.mood];
+      const lp = filter(c, 'lowpass', between(lo, hi));
+      const g = c.createGain(); g.gain.value = 0.35;
+      const d = c.createDelay(0.5); d.delayTime.value = 0.07;
+      const dg = c.createGain(); dg.gain.value = 0.25;
+      s.connect(lp); lp.connect(g); lp.connect(d); d.connect(dg); dg.connect(g);
+      const pan = typeof c.createStereoPanner === 'function' ? c.createStereoPanner() : null;
+      if (pan) { pan.pan.value = between(-0.6, 0.6); g.connect(pan); pan.connect(e.out); } else g.connect(e.out);
+      playing = s;
+      s.onended = () => { if (playing === s) { playing = null; if (e.alive()) arm(); } };
+      s.start();
+    });
+  };
+  arm();
+  return () => { const p = playing; playing = null; if (p) { try { p.stop(); } catch { /* ended */ } } };
+};
+
+const BUILDERS: Record<AmbienceId, Builder> = { jazz, sirens, hum, buzz, tick, incidents };
 
 export function createAmbience(makeCtx: () => AudioContext = () => new AudioContext()): Ambience {
   let ctx: AudioContext | null = null;
@@ -186,6 +210,19 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   let unlocked = false;
   let mood: MoodId | null = null;
   const layers = new Map<AmbienceId, Layer>();
+  const clipCache = new Map<string, Promise<AudioBuffer | null>>();
+  function loadClip(file: string): Promise<AudioBuffer | null> {
+    let p = clipCache.get(file);
+    if (!p) {
+      const c = ctx!;
+      p = fetch(`${import.meta.env.BASE_URL}audio/incidents/${file}`)
+        .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then(b => c.decodeAudioData(b))
+        .catch(() => null);
+      clipCache.set(file, p);   // failures stay cached as null: never re-fetched this session
+    }
+    return p;
+  }
 
   const target = (): number => (muted || !enabled ? 0 : volume);
   const audible = (): boolean => enabled && !muted && volume > 0 && !(typeof document !== 'undefined' && document.hidden);
@@ -208,15 +245,18 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     gain.gain.linearRampToValueAtTime(1, c.currentTime + FADE);
     gain.connect(master!);
     const timers = new Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>();
-    let dead = false;
+    let dead = false, retired = false;
     const env: Env = {
-      c, out: gain, noise: noise!,
+      c, out: gain, noise: noise!, mood: mood!,
+      alive: () => !dead && !retired && audible(),
+      clip: loadClip,
       later(fn, ms) { const h = setTimeout(() => { timers.delete(h); if (!dead && audible()) fn(); }, ms); timers.add(h); },
       every(fn, ms) { timers.add(setInterval(() => { if (!dead && audible()) fn(); }, ms)); },
     };
     const teardown = BUILDERS[id](env);
     layers.set(id, {
       gain,
+      retire() { retired = true; },
       stop() {
         dead = true;
         for (const h of timers) { clearTimeout(h as ReturnType<typeof setTimeout>); clearInterval(h as ReturnType<typeof setInterval>); }
@@ -229,6 +269,7 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   function fadeOut(id: AmbienceId): void {
     const l = layers.get(id); if (!l || !ctx) return;
     layers.delete(id);
+    l.retire();   // a clip whose fetch resolves during the fade must not start on this layer
     const t = ctx.currentTime;
     l.gain.gain.cancelScheduledValues?.(t);
     l.gain.gain.setValueAtTime(l.gain.gain.value, t);
@@ -269,7 +310,7 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     unlock() { unlocked = true; if (ctx) { applyLayers(); applyRunState(); } else create(); },
     // True once nothing more is needed from further gestures (running, or silent on purpose).
     settled() { return !!ctx && (ctx.state === 'running' || !audible()); },
-    setMood(id) { mood = id; applyLayers(); },
+    setMood(id) { if (id !== mood) fadeOut('incidents'); mood = id; applyLayers(); },
     setEnabled(on) { enabled = on; applyMaster(); applyLayers(); applyRunState(); },
     setVolume(v) { volume = v; applyMaster(); applyLayers(); applyRunState(); },
     setMuted(m) { muted = m; applyMaster(); applyLayers(); applyRunState(); },

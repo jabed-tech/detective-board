@@ -53,7 +53,7 @@ describe('prefs', () => {
   });
   it('has sound/effect defaults', () => {
     const p = loadPrefs(fakeStorage());
-    expect(p).toMatchObject({ muted: false, ambience: false, ambienceVolume: 0.3, musicOn: false, lastThickness: 1 });
+    expect(p).toMatchObject({ muted: false, ambience: false, ambienceVolume: 0.2, musicOn: false, lastThickness: 1 });
     expect(p.effects).toEqual({ blinds: true, rain: true, grain: true, neon: true, dust: true, flicker: true });
     expect('musicId' in p).toBe(false);
   });

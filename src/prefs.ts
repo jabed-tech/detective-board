@@ -30,7 +30,7 @@ export const DEFAULT_PREFS: Prefs = {
   defaultTension: 0.5, lastExportAt: 0, memoSnoozedAt: 0,
   tiltNew: true, lastFastener: 'pin',
   clipboardKeys: true, freeAnchors: false,
-  muted: false, ambience: false, ambienceVolume: 0.3, musicOn: false, lastThickness: 1,
+  muted: false, ambience: false, ambienceVolume: 0.2, musicOn: false, lastThickness: 1,
   effects: { blinds: true, rain: true, grain: true, neon: true, dust: true, flicker: true },
 };
 

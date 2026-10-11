@@ -3,7 +3,7 @@ export type MoodId = 'noir-office' | 'precinct' | 'basement' | 'motel' | 'archiv
 export type FastenerId = 'pin' | 'tack' | 'tape' | 'magnet' | 'clip' | 'nail';
 export type StringMaterial = 'yarn' | 'twine' | 'marker';
 export type EffectId = 'blinds' | 'rain' | 'grain' | 'neon' | 'dust' | 'flicker';
-export type AmbienceId = 'rain' | 'jazz' | 'sirens' | 'hum' | 'buzz' | 'tick';
+export type AmbienceId = 'jazz' | 'sirens' | 'hum' | 'buzz' | 'tick' | 'incidents';
 export type LightId = 'lamp' | 'fluorescent' | 'bulb' | 'neon' | 'sepia';
 export type ItemType = 'photo' | 'polaroid' | 'sticky' | 'index'
   | 'mugshot' | 'newspaper' | 'receipt' | 'casefile' | 'sketch' | 'stamp' | 'object';
@@ -88,16 +88,16 @@ export const MATERIALS: { id: StringMaterial; name: string }[] = [
 ];
 export const SURFACES: Record<SurfaceId, { name: string; fasteners: FastenerId[]; material: StringMaterial }> = {
   cork:    { name: 'Cork board',      fasteners: ['pin', 'tack'],    material: 'yarn' },
-  glass:   { name: 'Precinct glass',  fasteners: ['magnet', 'tape'], material: 'marker' },
+  glass:   { name: 'Acrylic panel',   fasteners: ['tape', 'magnet'], material: 'marker' },
   brick:   { name: 'Brick wall',      fasteners: ['tape', 'nail'],   material: 'yarn' },
   wood:    { name: 'Wood panelling',  fasteners: ['tack', 'nail'],   material: 'twine' },
   archive: { name: 'Archive cork',    fasteners: ['pin', 'tack'],    material: 'twine' },
 };
 export const MOODS: Record<MoodId, { name: string; blurb: string; surface: SurfaceId; light: LightId; effects: EffectId[]; ambience: AmbienceId[] }> = {
-  'noir-office': { name: 'Noir Office', blurb: 'Desk lamp, venetian blinds, rain on the glass, a little jazz.', surface: 'cork', light: 'lamp', effects: ['blinds', 'rain', 'flicker'], ambience: ['rain', 'jazz'] },
-  precinct: { name: 'Precinct Night Shift', blurb: 'Cold fluorescent tubes, a glass board, sirens far off.', surface: 'glass', light: 'fluorescent', effects: ['flicker'], ambience: ['hum', 'sirens'] },
+  'noir-office': { name: 'Noir Office', blurb: 'Desk lamp, venetian blinds, rain on the window, a little jazz.', surface: 'cork', light: 'lamp', effects: ['blinds', 'rain', 'flicker'], ambience: ['jazz'] },
+  precinct: { name: 'Precinct Night Shift', blurb: 'Cold fluorescent tubes, an acrylic evidence board, sirens far off.', surface: 'glass', light: 'fluorescent', effects: ['flicker'], ambience: ['sirens'] },
   basement: { name: 'Basement Obsession', blurb: 'One bare bulb, brick, and a lot of grain.', surface: 'brick', light: 'bulb', effects: ['grain', 'flicker'], ambience: ['hum'] },
-  motel: { name: 'Motel Stakeout', blurb: 'Wood panelling lit by a buzzing neon sign.', surface: 'wood', light: 'neon', effects: ['neon', 'grain'], ambience: ['buzz', 'rain'] },
+  motel: { name: 'Motel Stakeout', blurb: 'Wood panelling lit by a buzzing neon sign.', surface: 'wood', light: 'neon', effects: ['neon', 'grain'], ambience: ['buzz'] },
   archive: { name: 'Cold Case Archive', blurb: 'Sepia files, dust in the air, a clock ticking.', surface: 'archive', light: 'sepia', effects: ['dust', 'grain'], ambience: ['tick'] },
 };
 export const STAMPS: { id: StampId; label: string; w: number; h: number }[] = [

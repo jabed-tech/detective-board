@@ -27,7 +27,8 @@ describe('jazz', () => {
   });
   it('siren delay range', () => { expect(nextSirenDelay(() => 0)).toBe(40_000); expect(nextSirenDelay(() => 0.999999)).toBeLessThanOrEqual(120_000); });
   it('jazz steps aside for the user music', () => {
-    expect(layersFor('noir-office', false)).toEqual(['rain', 'jazz']);
-    expect(layersFor('noir-office', true)).toEqual(['rain']);
+    expect(layersFor('noir-office', false)).toEqual(['jazz', 'incidents']);
+    expect(layersFor('noir-office', true)).toEqual(['incidents']);
+    expect(layersFor('precinct', false)).toEqual(['sirens', 'incidents']);
   });
 });
