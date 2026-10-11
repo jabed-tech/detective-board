@@ -1,7 +1,7 @@
 import { rng } from '../model/random';
 
 /** A close-up brick wall: ~3× the old module so a brick is about one and a half photos wide. */
-export const BRICK = { w: 406, h: 116, mortar: 14, cols: 3, rows: 6 } as const;
+export const BRICK = { w: 650, h: 186, mortar: 22, cols: 3, rows: 6 } as const;
 export const BRICK_TILE = { w: (BRICK.w + BRICK.mortar) * BRICK.cols, h: (BRICK.h + BRICK.mortar) * BRICK.rows };
 /** Alpha of the full-tile noise layer, and the darkest soft-patch opacity: both darken the bricks, so the floor budgets them. */
 export const NOISE_ALPHA = 0.15;
@@ -13,18 +13,18 @@ const MORTAR = '#b3a794';
 /** One brick drawn at the origin: base tone, lit top arris, shadow into the bed joint, a few chips, a soft patch. */
 function brick(tone: string, r: () => number): string {
   const { w, h } = BRICK;
-  let s = `<rect width="${w}" height="${h}" rx="3" fill="${tone}"/>`;
-  s += `<rect width="${w}" height="3" fill="#fff" fill-opacity=".14"/>`;
-  s += `<rect y="${h - 4}" width="${w}" height="4" fill="#000" fill-opacity=".22"/>`;
+  let s = `<rect width="${w}" height="${h}" rx="5" fill="${tone}"/>`;
+  s += `<rect width="${w}" height="5" fill="#fff" fill-opacity=".14"/>`;
+  s += `<rect y="${h - 6}" width="${w}" height="6" fill="#000" fill-opacity=".22"/>`;
   const chips = Math.floor(r() * 3);
   for (let i = 0; i < chips; i++) {
-    const cx = Math.round(r() * (w - 40)), cw = 10 + Math.round(r() * 22), depth = 6 + Math.round(r() * 6);
+    const cx = Math.round(r() * (w - 64)), cw = 16 + Math.round(r() * 35), depth = 10 + Math.round(r() * 10);
     s += r() < 0.5
       ? `<path d="M${cx} 0h${cw}l${-Math.round(cw / 2)} ${depth}z" fill="${MORTAR}" fill-opacity=".9"/>`
       : `<path d="M${cx} ${h}h${cw}l${-Math.round(cw / 2)} ${-depth}z" fill="${MORTAR}" fill-opacity=".9"/>`;
   }
   const px = Math.round(r() * w * 0.6), pw = Math.round(w * 0.3 + r() * w * 0.3);
-  s += `<rect x="${px}" y="${Math.round(r() * h * 0.4)}" width="${pw}" height="${Math.round(h * 0.45)}" rx="24" fill="#000" fill-opacity="${(PATCH_MAX * 0.4 + r() * PATCH_MAX * 0.6).toFixed(3)}"/>`;
+  s += `<rect x="${px}" y="${Math.round(r() * h * 0.4)}" width="${pw}" height="${Math.round(h * 0.45)}" rx="38" fill="#000" fill-opacity="${(PATCH_MAX * 0.4 + r() * PATCH_MAX * 0.6).toFixed(3)}"/>`;
   return s;
 }
 

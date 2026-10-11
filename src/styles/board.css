@@ -41,7 +41,7 @@
 .surface-brick {
   background-color: #b3a794;
   background-image: radial-gradient(ellipse at 0% 100%, rgba(240, 232, 220, .45), transparent 55%), var(--brick-tile, none);
-  background-size: 100% 100%, 1260px 780px;
+  background-size: 100% 100%, var(--brick-tile-size, 2016px 1248px);
   background-repeat: no-repeat, repeat;
 }
 
