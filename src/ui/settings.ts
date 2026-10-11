@@ -59,7 +59,7 @@ export function createSettings(dialog: HTMLDialogElement, deps: SettingsDeps): {
       sound.append(
         h('label', { className: 'opt' }, sfx, 'Sound effects (pins, string, paper)'),
         field('Effects volume', vol),
-        h('label', { className: 'opt' }, amb, 'Room ambience (rain, jazz, hum… depends on the mood)'),
+        h('label', { className: 'opt' }, amb, 'Room ambience (jazz, sirens, hum… depends on the mood)'),
         field('Ambience & music volume', ambVol),
         h('div', { className: 'field' }, h('span', { className: 'field-lbl' }, 'Your music'),
           h('p', {}, p.musicName ?? 'No tape loaded'),

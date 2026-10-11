@@ -1,5 +1,5 @@
 .room { position: relative; overflow: hidden; min-height: 0; }
-.viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; background: radial-gradient(ellipse at 50% 30%, #2a1f17, #0d0a08 70%); }
+.viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
 .world { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; transform-origin: 0 0; will-change: transform; }
 .surface {
   position: absolute; inset: 0; z-index: 0; border-radius: 4px;
