@@ -1,5 +1,6 @@
 import { MOODS, type MoodId } from '../model/types';
 import { button, h } from './dom';
+import { brickTileUrl } from '../view/surface';
 
 /** Ask which room the new case is set in. Resolves the mood, or null on Cancel/Escape/backdrop. */
 export function pickMood(dialog: HTMLDialogElement): Promise<MoodId | null> {
@@ -10,6 +11,7 @@ export function pickMood(dialog: HTMLDialogElement): Promise<MoodId | null> {
       const m = MOODS[id];
       const swatch = h('span', { className: `newcase-swatch surface surface-${m.surface}` });
       swatch.setAttribute('aria-hidden', 'true');
+      if (m.surface === 'brick') swatch.style.setProperty('--brick-tile', brickTileUrl());
       const b = h('button', { type: 'button', className: 'newcase-opt' },
         swatch,
         h('span', { className: 'newcase-text' }, h('strong', {}, m.name), h('span', { className: 'newcase-blurb' }, m.blurb)));
