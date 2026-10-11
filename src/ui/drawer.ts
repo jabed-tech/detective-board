@@ -26,6 +26,8 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
   const deb = (fn: () => void): Debounced => { const d = debounce(fn); pending.push(d); return d; };
   const flushAll = () => pending.forEach(d => d.flush());
   const cancelAll = () => { pending.forEach(d => d.cancel()); pending = []; };
+  /** Panel is going away for a different selection: save what was typed (each patch is bound to its own item/link id). */
+  const flushAndClear = () => { const old = pending; pending = []; old.forEach(d => d.flush()); };
   const commit = (fn: (b: Board) => Board) => deps.store.commit(fn(deps.store.get()));
   /** Update a string, leaving the board untouched (no empty undo step) when nothing would change. */
   const patchLink = (id: string, patch: Partial<Omit<Link, 'id' | 'from' | 'to'>>) => commit(b => {
@@ -211,13 +213,19 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     const looks = [flag('Aged look (yellowed, foxed paper)', 'aged'), flag('Cross it out (red X)', 'crossed')];
     if (it.type === 'sticky' || it.type === 'index') {
       const ta = h('textarea', { value: it.data.text ?? '', rows: 4, maxLength: 5000 });
-      ta.addEventListener('input', deb(() => patchData({ text: ta.value })));
+      const go = () => patchData({ text: ta.value });
+      const d = deb(go);
+      ta.addEventListener('input', d);
+      ta.addEventListener('change', () => { d.cancel(); go(); });
       out.push(field('Writing', ta));
       out.push(textSizeRow());
     }
     if (it.type === 'polaroid') {
       const cap = h('input', { type: 'text', value: it.data.caption ?? '', maxLength: 200 });
-      cap.addEventListener('input', deb(() => patchData({ caption: cap.value })));
+      const go = () => patchData({ caption: cap.value });
+      const d = deb(go);
+      cap.addEventListener('input', d);
+      cap.addEventListener('change', () => { d.cancel(); go(); });
       out.push(field('Caption', cap));
       out.push(textSizeRow());
       out.push(h('div', { className: 'row' }, button(it.data.imageId ? 'Replace photo' : 'Add photo', () => deps.pickPhoto(it.id))));
@@ -365,11 +373,12 @@ export function createDrawer(el: HTMLElement, deps: DrawerDeps): { render(force?
     render(force = false) {
       const sel = deps.selection();
       const b = deps.store.get();
-      if (sel.kind === 'none') { cancelAll(); el.hidden = true; shownKey = ''; return; }
+      if (sel.kind === 'none') { flushAndClear(); el.hidden = true; shownKey = ''; return; }
       const key = sel.kind === 'board' ? `board:${b.id}` : `${sel.kind}:${sel.id}`;
       // Don't rebuild under the user's cursor while they edit this same thing.
       if (!force && key === shownKey && el.contains(document.activeElement)) return;
-      cancelAll();
+      // A different selection: keep the typing. The same one rebuilt (undo/redo, reroll): drop stale timers so they can't overwrite it.
+      if (key !== shownKey) flushAndClear(); else cancelAll();
       let parts: Node[];
       if (sel.kind === 'board') parts = boardPanel(b);
       else if (sel.kind === 'item') {

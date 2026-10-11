@@ -47,4 +47,55 @@ describe('drawer debounced edits', () => {
     vi.advanceTimersByTime(2000);
     expect(get().data.lines).toEqual([{ name: 'B2', price: 200 }, { name: 'C', price: 300 }]);
   });
+
+  it('typing in a sticky then selecting another item within the debounce saves the text', () => {
+    const a = makeItem('sticky', 100, 100, { text: 'old' });
+    const b = makeItem('sticky', 600, 600, { text: 'other' });
+    const store = createStore(addItem(addItem(newBoard('T', 1), a), b));
+    const el = document.createElement('div');
+    document.body.append(el);
+    let selId = a.id;
+    const noop = () => {};
+    const drawer = createDrawer(el, {
+      store, selection: () => ({ kind: 'item', id: selId }), close: noop, exportBoard: noop, importBoard: noop, clearBoard: noop,
+      deleteCase: noop, closeCase: noop, pickPhoto: noop, fitHeight: () => null, setYarn: noop, setLastFastener: noop, setLastThickness: noop,
+    });
+    drawer.render(true);
+    type(el.querySelector<HTMLTextAreaElement>('textarea')!, 'typed fast');
+    selId = b.id;
+    drawer.render();
+    expect(store.get().items.find(i => i.id === a.id)!.data.text).toBe('typed fast');
+    expect(store.get().items.find(i => i.id === b.id)!.data.text).toBe('other');
+    vi.advanceTimersByTime(2000);
+    expect(store.get().items.find(i => i.id === b.id)!.data.text).toBe('other');
+  });
+
+  it('polaroid caption typed then drawer closed is saved', () => {
+    const it = makeItem('polaroid', 100, 100, { caption: 'c0' });
+    const store = createStore(addItem(newBoard('T', 1), it));
+    const el = document.createElement('div');
+    document.body.append(el);
+    let sel: { kind: 'none' } | { kind: 'item'; id: string } = { kind: 'item', id: it.id };
+    const noop = () => {};
+    const drawer = createDrawer(el, {
+      store, selection: () => sel, close: noop, exportBoard: noop, importBoard: noop, clearBoard: noop,
+      deleteCase: noop, closeCase: noop, pickPhoto: noop, fitHeight: () => null, setYarn: noop, setLastFastener: noop, setLastThickness: noop,
+    });
+    drawer.render(true);
+    type(el.querySelector<HTMLInputElement>('input[type=text]')!, 'new cap');
+    sel = { kind: 'none' };
+    drawer.render();
+    expect(store.get().items[0].data.caption).toBe('new cap');
+  });
+
+  it('sticky: typing then undo of another change does not let the stale timer overwrite', () => {
+    const it = makeItem('sticky', 100, 100, { text: 'base' });
+    const { store, el, drawer, get } = setup(it);
+    store.commit({ ...store.get(), items: store.get().items.map(i => ({ ...i, rot: 5 })) });
+    type(el.querySelector<HTMLTextAreaElement>('textarea')!, 'typed');
+    store.undo();
+    drawer.render(true);
+    vi.advanceTimersByTime(2000);
+    expect(get().data.text).toBe('base');
+  });
 });
