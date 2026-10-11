@@ -206,7 +206,7 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
   let noise: AudioBuffer | null = null;
-  let enabled = false, muted = false, volume = 0.3, musicPlaying = false;
+  let enabled = false, muted = false, volume = 0.2, musicPlaying = false;
   let unlocked = false;
   let mood: MoodId | null = null;
   const layers = new Map<AmbienceId, Layer>();
@@ -280,7 +280,7 @@ export function createAmbience(makeCtx: () => AudioContext = () => new AudioCont
     if (!ctx) return;
     if (!audible()) {
       // Silent: stop scheduling at once (callbacks check audible()), tear down after the master fade.
-      for (const [id, l] of [...layers]) { layers.delete(id); setTimeout(() => l.stop(), 400); }
+      for (const [id, l] of [...layers]) { layers.delete(id); l.retire(); setTimeout(() => l.stop(), 400); }
       return;
     }
     const want = new Set<AmbienceId>(mood ? layersFor(mood, musicPlaying) : []);

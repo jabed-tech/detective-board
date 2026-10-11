@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAmbience } from './ambience';
-import { CLIPS } from './incidents';
-import { FIRST_MIN, INCIDENT_GAP } from './incidents';
+import { CLIPS, FIRST_MIN, INCIDENT_GAP } from './incidents';
 
 function param() {
   const p = {
@@ -163,6 +162,20 @@ describe('ambience', () => {
       await vi.advanceTimersByTimeAsync(INCIDENT_GAP.precinct[0]);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       a.setMood('archive');            // old layer is fading out, its fetch is still pending
+      release();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(clipSources(f)).toHaveLength(0);
+    });
+    it('a clip whose fetch resolves during the 400 ms mute teardown never starts', async () => {
+      let release: () => void = () => {};
+      const gate = new Promise<void>(r => { release = r; });
+      vi.stubGlobal('fetch', vi.fn(async () => { await gate; return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; }));
+      const f = fakeCtx(); const a = createAmbience(() => f.ctx as unknown as AudioContext);
+      a.setEnabled(true); a.setMood('precinct'); a.unlock();
+      await vi.advanceTimersByTimeAsync(INCIDENT_GAP.precinct[0]);
+      a.setMuted(true);
+      await vi.advanceTimersByTimeAsync(100);
+      a.setMuted(false);               // unmuted within 400 ms, old layer's fetch still pending
       release();
       await vi.advanceTimersByTimeAsync(300);
       expect(clipSources(f)).toHaveLength(0);
