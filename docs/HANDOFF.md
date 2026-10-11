@@ -47,3 +47,9 @@ Execution ledger (git-ignored, local): `.superpowers/sdd/phase-1/progress.md` �
 - 282 tests, tsc, build clean. Per-task reviews + final Opus review + fix wave done; browser-checked on 5174.
 - **Resume here:** (1) user decides merge of `phase-2b` → `master` (local only); (2) recorded clips: user stopped the download step — `CLIPS` in `src/audio/incidents.ts` is empty so the layer is silent. Shortlist (9 Freesound CC0 clips) is in the conversation/ledger; ask how they want to source/convert (no ffmpeg installed).
 - Deferred minors in `.superpowers/sdd/phase-2b/progress.md` (unused --accent, flat frame textures, micro-scratches, a few untested hard-coded muted colours).
+
+## 2026-10-11 — published
+- Public repo https://github.com/jabed-tech/detective-board, live at https://jabed-tech.github.io/detective-board/ (GitHub Actions deploy on every push to `main`). Local `master` was renamed `main`.
+- Commit emails rewritten to jabed-tech's GitHub no-reply address before the first push (backup bundle was kept in the session scratch folder). Push over HTTPS via `gh` (the SSH key belongs to another account).
+- Since phase 2b: 10 CC0 phone/voice clips (`public/audio/incidents/`, credits in README); Add menu with group tabs; tape straddles the item's top edge; × on a case tab puts it away (reopen under "Put away").
+- Follow-ups (menu tabs / put-away / tape) were browser-checked but not separately code-reviewed — worth a review pass next session.
