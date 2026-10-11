@@ -1,4 +1,4 @@
-import { MOODS, type EffectId, type MoodId, type SurfaceId } from '../model/types';
+import { BOARD_H, BOARD_W, MOODS, type EffectId, type MoodId, type SurfaceId } from '../model/types';
 import { rng } from '../model/random';
 import { BRICK_TONES } from '../view/brickTile';
 import type { Rect } from './region';
@@ -69,7 +69,7 @@ function glow(ctx: CanvasRenderingContext2D, r: Rect, cx: number, cy: number, rx
 
 /** Whitewash pooling bottom-left of the 4000 x 3000 board; matches the CSS `ellipse at 0% 100%`. */
 function glowWhitewash(ctx: CanvasRenderingContext2D, r: Rect): void {
-  glow(ctx, r, 0, 3000, 4000 * 0.55 * 1.414, 3000 * 0.55 * 1.414, [[0, 'rgba(240,232,220,.45)'], [1, 'rgba(240,232,220,0)']]);
+  glow(ctx, r, 0, BOARD_H, BOARD_W * 0.55 * 1.414, BOARD_H * 0.55 * 1.414, [[0, 'rgba(240,232,220,.45)'], [1, 'rgba(240,232,220,0)']]);
 }
 
 function multiply(ctx: CanvasRenderingContext2D, r: Rect, color: string): void {

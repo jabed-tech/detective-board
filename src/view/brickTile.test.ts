@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRICK, BRICK_TILE, BRICK_TONES, brickTileSvg } from './brickTile';
+import { BRICK, BRICK_TILE, BRICK_TONES, NOISE_ALPHA, PATCH_MAX, brickTileSvg } from './brickTile';
 
 const hslL = (hex: string): number => {
   const n = parseInt(hex.slice(1), 16);
@@ -13,8 +13,13 @@ describe('brickTileSvg', () => {
     expect(BRICK_TILE).toEqual({ w: 1260, h: 780 });
     expect(brickTileSvg()).toContain('width="1260" height="780"');
   });
-  it('every brick tone keeps the 35% lighting floor under the basement bulb (×0.82)', () => {
-    for (const t of BRICK_TONES) expect(hslL(t) * 0.82).toBeGreaterThanOrEqual(0.35);
+  it('every tone keeps the 35% floor after noise + patch darkening and the basement bulb (x0.82 + 0.004)', () => {
+    const nb = NOISE_ALPHA * 0.5 + PATCH_MAX * 0.25;   // mean darkening share (noise alpha x mean .5, patch share)
+    for (const t of BRICK_TONES) expect((hslL(t) * (1 - nb) + 0.13 * nb) * 0.82 + 0.004).toBeGreaterThanOrEqual(0.35);
+  });
+  it('uses the exported noise alpha and a user-space filter region', () => {
+    expect(brickTileSvg()).toContain(`.35 0`.replace('.35', String(NOISE_ALPHA)));
+    expect(brickTileSvg()).toContain('filterUnits="userSpaceOnUse" x="0" y="0" width="1260" height="780"');
   });
   it('offset courses wrap: the brick crossing the right edge is repeated at the left', () => {
     const svg = brickTileSvg();

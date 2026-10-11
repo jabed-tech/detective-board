@@ -3,8 +3,11 @@ import { rng } from '../model/random';
 /** A close-up brick wall: ~3× the old module so a brick is about one and a half photos wide. */
 export const BRICK = { w: 406, h: 116, mortar: 14, cols: 3, rows: 6 } as const;
 export const BRICK_TILE = { w: (BRICK.w + BRICK.mortar) * BRICK.cols, h: (BRICK.h + BRICK.mortar) * BRICK.rows };
-/** All ≥ 43% HSL lightness so the basement bulb's outer overlay (×0.82) stays above the 35% floor. */
-export const BRICK_TONES = ['#a35a3f', '#ad6346', '#9e5a42', '#b16a4b', '#a8603f', '#b87455'];
+/** Alpha of the full-tile noise layer, and the darkest soft-patch opacity: both darken the bricks, so the floor budgets them. */
+export const NOISE_ALPHA = 0.15;
+export const PATCH_MAX = 0.05;
+/** Tones are chosen so that, after the noise + patch darkening and the basement bulb's outer overlay (x0.82), L stays >= 35%. */
+export const BRICK_TONES = ['#a85e42', '#ad6346', '#a45e44', '#b16a4b', '#ab6342', '#b87455'];
 const MORTAR = '#b3a794';
 
 /** One brick drawn at the origin: base tone, lit top arris, shadow into the bed joint, a few chips, a soft patch. */
@@ -21,7 +24,7 @@ function brick(tone: string, r: () => number): string {
       : `<path d="M${cx} ${h}h${cw}l${-Math.round(cw / 2)} ${-depth}z" fill="${MORTAR}" fill-opacity=".9"/>`;
   }
   const px = Math.round(r() * w * 0.6), pw = Math.round(w * 0.3 + r() * w * 0.3);
-  s += `<rect x="${px}" y="${Math.round(r() * h * 0.4)}" width="${pw}" height="${Math.round(h * 0.45)}" rx="24" fill="#000" fill-opacity="${(0.03 + r() * 0.05).toFixed(3)}"/>`;
+  s += `<rect x="${px}" y="${Math.round(r() * h * 0.4)}" width="${pw}" height="${Math.round(h * 0.45)}" rx="24" fill="#000" fill-opacity="${(PATCH_MAX * 0.4 + r() * PATCH_MAX * 0.6).toFixed(3)}"/>`;
   return s;
 }
 
@@ -43,8 +46,8 @@ export function brickTileSvg(seed = 7): string {
   }
   const { w, h } = BRICK_TILE;
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`
-    + `<filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/>`
-    + `<feColorMatrix values="0 0 0 0 .2 0 0 0 0 .1 0 0 0 0 .06 0 0 0 .35 0"/></filter>`
+    + `<filter id="n" filterUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/>`
+    + `<feColorMatrix values="0 0 0 0 .2 0 0 0 0 .1 0 0 0 0 .06 0 0 0 ${NOISE_ALPHA} 0"/></filter>`
     + `<rect width="${w}" height="${h}" fill="${MORTAR}"/>${out.join('')}`
     + `<rect width="${w}" height="${h}" filter="url(#n)"/></svg>`;
 }
