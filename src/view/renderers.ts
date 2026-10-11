@@ -141,6 +141,11 @@ export function renderItemContent(body: HTMLElement, it: Item): void {
 const trim = (s: string | undefined): string => (s ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
 
 export function itemLabel(it: Item): string {
+  const base = baseLabel(it);
+  return base + (it.data.crossed ? ', crossed out' : '') + (it.data.aged ? ', aged' : '');
+}
+
+function baseLabel(it: Item): string {
   const d = it.data;
   const join = (n: string, t: string) => (t ? `${n}: ${t}` : n);
   switch (it.type) {

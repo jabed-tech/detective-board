@@ -17,6 +17,7 @@ describe('prefs', () => {
   it('merges partial and rejects invalid values', () => {
     const p = loadPrefs(fakeStorage(JSON.stringify({ sfx: false, atmosphere: 'disco', volume: 9 })));
     expect(p.sfx).toBe(false);
+    expect(p.muted).toBe(true); // phase-1 sfx:false migrates to muted
     expect(p.atmosphere).toBe('gentle');
     expect(p.volume).toBe(1);
   });
@@ -68,5 +69,13 @@ describe('prefs', () => {
     expect(p.lastThickness).toBe(3);
     expect(p.musicName!.length).toBe(80);
     expect([p.musicId, p.musicOn, p.muted, p.ambience]).toEqual(['abc', true, true, true]);
+  });
+});
+
+describe('muted migration', () => {
+  it('explicit muted wins over legacy sfx:false; sfx on stays unmuted', () => {
+    expect(loadPrefs(fakeStorage(JSON.stringify({ sfx: false, muted: false }))).muted).toBe(false);
+    expect(loadPrefs(fakeStorage(JSON.stringify({ sfx: true }))).muted).toBe(false);
+    expect(loadPrefs(fakeStorage(JSON.stringify({}))).muted).toBe(false);
   });
 });

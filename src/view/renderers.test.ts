@@ -106,6 +106,9 @@ describe('renderers', () => {
   it('labels new types', () => {
     expect(itemLabel(makeItem('mugshot', 0, 0, { name: 'Gary' }))).toBe('Mugshot: Gary');
     expect(itemLabel(makeItem('stamp', 0, 0, { stamp: 'classified' }))).toBe('Stamp: CLASSIFIED');
+    expect(itemLabel(makeItem('sticky', 0, 0, { text: 'Hi', crossed: true }))).toBe('Sticky note: Hi, crossed out');
+    expect(itemLabel(makeItem('photo', 0, 0, { aged: true }))).toBe('Photograph, aged');
+    expect(itemLabel(makeItem('photo', 0, 0, { aged: true, crossed: true }))).toBe('Photograph, crossed out, aged');
     expect(itemLabel(makeItem('object', 0, 0, { object: 'keys', caption: 'Found in sink' }))).toBe('Keys: Found in sink');
   });
 });

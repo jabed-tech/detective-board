@@ -63,7 +63,8 @@ export function loadPrefs(store: KV | null = local()): Prefs {
     lastFastener: FASTENERS.find(f => f.id === raw.lastFastener)?.id ?? DEFAULT_PREFS.lastFastener,
     clipboardKeys: typeof raw.clipboardKeys === 'boolean' ? raw.clipboardKeys : DEFAULT_PREFS.clipboardKeys,
     freeAnchors: typeof raw.freeAnchors === 'boolean' ? raw.freeAnchors : DEFAULT_PREFS.freeAnchors,
-    muted: typeof raw.muted === 'boolean' ? raw.muted : DEFAULT_PREFS.muted,
+    // Phase-1 stored only `sfx`; a user who had it off should see the mute button as muted, not as unmuted-but-silent.
+    muted: typeof raw.muted === 'boolean' ? raw.muted : raw.sfx === false ? true : DEFAULT_PREFS.muted,
     ambience: typeof raw.ambience === 'boolean' ? raw.ambience : DEFAULT_PREFS.ambience,
     ambienceVolume: num(raw.ambienceVolume, 0, 1, DEFAULT_PREFS.ambienceVolume),
     musicOn: typeof raw.musicOn === 'boolean' ? raw.musicOn : DEFAULT_PREFS.musicOn,
